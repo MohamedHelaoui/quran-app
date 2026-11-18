@@ -491,12 +491,14 @@ function normTsb(x){const o={items:tsbDefault(),log:{},sel:"t1"};if(!x||typeof x
 function lsLoad(){try{const r=localStorage.getItem(LS_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
 function lsSave(){try{localStorage.setItem(LS_KEY,JSON.stringify(state));}catch(e){}}
 
-const SYNC_TXT={ok:"متزامن",busy:"جارٍ الحفظ…",local:"على هذا الجهاز",warn:"غير متصل"};
+const SYNC_TXT={ok:"متزامن",busy:"جارٍ الحفظ…",local:"على هذا الجهاز",warn:"دون اتصال"};
 function setSync(m){syncMode=m;const el=document.getElementById("sync");if(!el)return;el.className="sync "+m;el.querySelector("span").textContent=SYNC_TXT[m]||"";if(view==="settings"&&!document.activeElement.matches("input,select,textarea"))renderSettings();}
 
 // Every change is saved on this device at once, then sent to the account (one write at a time).
+let saveSeq=0, sentSeq=0; // changes made / changes confirmed by the server
+function unsent(){return sentSeq<saveSeq;}
 function save(){
-  state.updatedAt=Date.now();
+  state.updatedAt=Date.now(); saveSeq++;
   lsSave();
   if(!dbRef) return;
   clearTimeout(saveTimer); setSync("busy");
@@ -507,10 +509,11 @@ async function flush(){
   if(!dbRef) return;
   if(saving){pendingSave=true;return;}
   saving=true;
-  const body=JSON.parse(JSON.stringify(state));
-  try{ await dbRef.set(body); setSync("ok"); }
+  const body=JSON.parse(JSON.stringify(state)); const seq=saveSeq;
+  if(!navigator.onLine){ saving=false; setSync("warn"); return; }
+  try{ await dbRef.set(body); sentSeq=Math.max(sentSeq,seq); setSync(unsent()?"busy":"ok"); }
   catch(e){
-    if(e&&e.code==="unavailable"){ await new Promise(r=>setTimeout(r,800+Math.random()*800)); try{await dbRef.set(JSON.parse(JSON.stringify(state)));setSync("ok");}catch(e2){setSync("warn");} }
+    if(e&&e.code==="unavailable"){ await new Promise(r=>setTimeout(r,800+Math.random()*800)); try{const sq=saveSeq;await dbRef.set(JSON.parse(JSON.stringify(state)));sentSeq=Math.max(sentSeq,sq);setSync("ok");}catch(e2){setSync("warn");} }
     else if(e&&(e.code==="invalid_argument"||e.code==="revoked")){dbRef=null;setSync("local");}
     else setSync("warn");
   }
@@ -536,7 +539,7 @@ async function pullRemote(){
   if(!sb||!sbUser) return;
   const {data,error}=await sb.from("user_state").select("data").eq("user_id",sbUser.id).maybeSingle();
   if(error){setSync("warn");return;}
-  if(data&&data.data){const r=normalize(data.data);if(r.updatedAt>state.updatedAt&&!saveTimer&&!saving)adoptRemote(r);}
+  if(data&&data.data){const r=normalize(data.data);if(r.updatedAt>state.updatedAt&&!saveTimer&&!saving&&!unsent())adoptRemote(r);}
   if(syncMode==="warn"&&!saveTimer&&!saving) setSync("ok");
 }
 function startLocal(){
@@ -548,7 +551,7 @@ async function startUser(u){
   const l=lsLoad(); state=l?normalize(l):freshState(); render(); setSync("busy");
   const {data,error}=await sb.from("user_state").select("data").eq("user_id",u.id).maybeSingle();
   dbRef=stateRef(u.id);
-  if(error){ setSync("warn"); return; }
+  if(error){ setSync("warn"); if(hasContent(state)) saveSeq++; return; }
   if(data&&data.data){ const r=normalize(data.data); if(r.updatedAt>state.updatedAt||(!state.updatedAt&&hasContent(r))) adoptRemote(r); else if(hasContent(state)) save(); }
   else {
     // a brand-new account: bring along what was recorded on this device without an account
@@ -562,7 +565,10 @@ async function startUser(u){
       const d=p.new&&p.new.data; if(!d) return; const r=normalize(d); if(r.updatedAt>state.updatedAt&&!saveTimer&&!saving) adoptRemote(r); }).subscribe();
   }catch(e){}
 }
-document.addEventListener("visibilitychange",()=>{if(!document.hidden)pullRemote();});
+async function resync(){ if(!sbUser||!dbRef) return; if(unsent()&&!saving){ await flush(); } await pullRemote(); }
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)resync();});
+window.addEventListener("online",()=>{toast("عاد الاتصال، تُرسَل تغييراتك");resync();});
+window.addEventListener("offline",()=>{setSync("warn");});
 async function signOut(){try{await sb.auth.signOut();}catch(e){} try{localStorage.removeItem("qa-guest");}catch(e){} location.reload();}
 
 // sign-in screen
@@ -1561,7 +1567,7 @@ function renderSettings(){
   const sm={ok:["متزامن مع حسابك","تُحفظ بياناتك في حسابك، وتظهر على أي جهاز تسجّل الدخول منه. التغييرات من جهاز آخر تصل تلقائيًا."],
     busy:["جارٍ الحفظ…","تُرسَل آخر تغييراتك إلى حسابك."],
     local:["على هذا الجهاز فقط",sbUser?"لم يتمكن التطبيق من الوصول إلى حسابك.":"أنت تستعمل التطبيق دون حساب، فبياناتك محفوظة على هذا الجهاز فقط. سجّل الدخول لتصل إليها من أجهزتك الأخرى."],
-    warn:["تعذّر الاتصال","لا يصل التطبيق إلى حسابك الآن (ربما الإنترنت مقطوع). تُحفظ تغييراتك على هذا الجهاز، وتُرسَل عند عودة الاتصال."]}[syncMode]||["…",""];
+    warn:[navigator.onLine?"تعذّر الاتصال":"دون إنترنت","التطبيق يعمل دون إنترنت، وتغييراتك محفوظة على هذا الجهاز وتُرسَل إلى حسابك تلقائيًا عند عودة الاتصال."]}[syncMode]||["…",""];
   el.innerHTML=`<h2 class="page-t">الإعدادات</h2>
     <div class="card"><div style="font-weight:600">الحساب والمزامنة</div>
       <div class="setting"><span>${sbUser?`<span dir="ltr" style="font-weight:500">${esc(sbUser.email||"")}</span>`:`<span class="meta">دون حساب</span>`}</span><span class="sync ${syncMode}" style="cursor:default"><i></i><span>${sm[0]}</span></span></div>
@@ -1927,6 +1933,7 @@ let renderedDay=today();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&today()!==renderedDay){renderedDay=today();render();}});
 
 initDb();
+if("serviceWorker" in navigator&&location.protocol!=="file:"){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(()=>{ /* pass the fonts stylesheet through the worker once so it is kept for offline use */ document.querySelectorAll('link[rel=stylesheet][href*="fonts.googleapis"]').forEach(l=>fetch(l.href,{mode:"no-cors"}).catch(()=>{})); }).catch(()=>{});});}
 </script>
 </body>
 </html>
