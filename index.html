@@ -1648,7 +1648,7 @@ function saveNoteFrom(id){
 
 // ---- Mushaf (Qalun, KFGQPC text) ----
 let mSel=null;
-let Q=null, qLoading=null, PAGE_IDX=null, mPage=1, mHi=null, mMode=0, revealed=new Map(), mScroll=false, mUnit="word", linkFrom=null, linkTo=null, selAnchor=null, noteEdit=false;
+let Q=null, qLoading=null, PAGE_IDX=null, mPage=1, mHi=null, mMode=0, revealed=new Map(), mScroll=false, mUnit="aya", linkFrom=null, linkTo=null, selAnchor=null, noteEdit=false;
 function loadQ(){
   if(Q) return Promise.resolve(Q);
   if(!qLoading) qLoading=fetch("qaloon.json").then(r=>{if(!r.ok)throw new Error("http");return r.json();}).then(d=>{
@@ -1704,9 +1704,9 @@ function renderMushaf(){
       <label class="meta">صفحة <input type="number" id="mPg" min="1" max="604" value="${mPage}"></label>
       <button class="icon-nav ${mSearch.open?"on":""}" id="mSrchBtn" aria-label="بحث" title="بحث في المصحف" style="font-size:16px">🔍</button>
       <div class="seg-ctl" role="group" aria-label="طريقة العرض">${["عرض","أول كلمة","إخفاء"].map((x,i)=>`<button data-mmode="${i}" class="${mMode===i?"on":""}">${x}</button>`).join("")}</div>
-      ${mMode?`<div class="seg-ctl" role="group" aria-label="الكشف">${[["word","كلمة كلمة"],["aya","آية كاملة"]].map(([k,x])=>`<button data-munit="${k}" class="${mUnit===k?"on":""}">${x}</button>`).join("")}</div>`:""}
+
     </div>
-    <p class="help" style="margin-top:-4px">${linkFrom?"":mMode===0?"اضغط على كلمة لتحديدها، أو على رقم الآية لتحديد الآية كاملة: ثم سجّل خطأً أو اربطها بموضع مشابه.":(mUnit==="word"?"اقرأ من حفظك، وكل ضغطة على الآية تُظهر الكلمة التالية.":"اقرأ من حفظك، والضغط على الآية يُظهرها كاملة.")+" بعد ظهورها كاملة، اضغط على كلمة أو على رقم الآية لتسجيل خطأ."}</p>
+    <p class="help" style="margin-top:-4px">${linkFrom?"":mMode===0?"اضغط على كلمة لتحديدها، أو على رقم الآية لتحديد الآية كاملة: ثم سجّل خطأً أو اربطها بموضع مشابه.":"اقرأ من حفظك، والضغط على الآية يُظهرها كاملة."+" بعد ظهورها كاملة، اضغط على كلمة أو على رقم الآية لتسجيل خطأ."}</p>
     ${linkFrom?`<div class="link-banner"><div style="min-width:0"><b>اختر الموضع المشابه</b><div class="meta" style="color:inherit;opacity:.85">${linkTo?"المختار: "+esc(locLabel(linkTo))+(linkTo.w!==null?" · اضغط كلمة أخرى في الآية لتوسيع العبارة":""):"من "+esc(locLabel(linkFrom))+" · اذهب إلى أي صفحة واضغط على الكلمة، أو على رقم الآية"}</div></div>
       <div style="display:flex;gap:6px;flex:none">${linkTo?`<button class="btn" id="linkOk" style="background:var(--gold-leaf);color:#0d1230">ربط</button>`:""}<button class="btn ghost" id="linkCancel">إلغاء</button></div></div>`:""}
     ${searchPanelHTML()}
