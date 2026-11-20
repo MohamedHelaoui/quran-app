@@ -402,6 +402,10 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .sug .mq,.mt-it .mq{font-family:"Qaloon",serif;font-size:21px;line-height:2}
 .mt-it{flex-direction:column;gap:0}
 .mt-g{margin-bottom:10px}
+.mt-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.mt-x{background:none;border:0;color:var(--muted);font-size:15px;cursor:pointer;padding:2px 6px}
+.mt-tools{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px}.mt-tools select{flex:1;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit}.mt-acts .btn:disabled{opacity:.35}
+.mt-sort{align-items:center;margin:0 0 10px}.mt-acts{margin-top:8px;align-items:center}.mt-acts .grow{flex:1}
 .mx-btn{font:inherit;font-size:13px;border:1px solid var(--red-soft);background:var(--red-soft);color:var(--red);border-radius:999px;padding:3px 12px;cursor:pointer;margin-top:8px;flex:none}
 .s .mx-btn{margin-top:0}
 .mx-btn.on{background:var(--red);color:#fff;border-color:var(--red)}
@@ -889,24 +893,46 @@ function allSugg(){
 }
 function sigItems(sig){return sig.split(",").map(k=>{const [s,a]=k.split(":").map(Number);return {s,a,w:null};});}
 function sugDone(sig){if(state.mdis.includes(sig))return true;const its=sigItems(sig);const g=groupOf(its[0]);return !!g&&its.every(it=>g.items.some(o=>o.s===it.s&&o.a===it.a));}
-let mutOpenAll=false, sugN=10, surOpen=false;
-function groupHTML(g,acts){
-  return `<div class="card mt-g">${g.items.map(it=>`<div class="mt-it"><button class="linkbtn sm" data-goloc="${it.s}:${it.a}:${it.w??""}:${it.we??""}">${esc(SURAHS[it.s-1][0])} ${it.a}</button><div class="mq">${diffHTML(it,g.items.filter(o=>o!==it))}</div></div>`).join("")}${g.note?`<div class="note">📝 ${esc(g.note)}</div>`:""}${acts||""}</div>`;
+let mutOpenAll=false, sugN=10, surOpen=false, mtSur=0, mtDelAsk=null;
+// order of "my" groups: by mistakes, mushaf order, or the user's own order (array order, moved with ↑ ↓)
+function mtSortKey(){return state.mtSort||"err";}
+function gFirst(g){return g.items.reduce((m,it)=>Math.min(m,it.s*1000+it.a),1e9);}
+function mtSorted(gs){const k=mtSortKey(),L=gs.slice();
+  if(k==="mine")return L; if(k==="msh")return L.sort((x,y)=>gFirst(x)-gFirst(y));
+  return L.sort((x,y)=>groupMist(y)-groupMist(x)||(x.due||"").localeCompare(y.due||""));}
+function inSur(items){return !mtSur||items.some(it=>it.s===mtSur);}
+function groupHTML(g,acts,edit){
+  return `<div class="card mt-g">${g.items.map((it,i)=>`<div class="mt-it"><div class="mt-h"><button class="linkbtn sm" data-goloc="${it.s}:${it.a}:${it.w??""}:${it.we??""}">${esc(SURAHS[it.s-1][0])} ${it.a}</button>${edit?`<button class="mt-x" data-mtrm="${g.id}|${i}" aria-label="أزل هذا الموضع من المجموعة" title="أزل هذا الموضع">✕</button>`:""}</div><div class="mq">${diffHTML(it,g.items.filter(o=>o!==it))}</div></div>`).join("")}${g.note?`<div class="note">📝 ${esc(g.note)}</div>`:""}${acts||""}</div>`;
 }
 function renderMutTab(){
   const el=document.getElementById("v-list");
   if(!Q){el.innerHTML=`<h2 class="page-t">المتشابهات</h2><div class="card empty"><p class="meta">جارٍ التحميل…</p></div>`;loadQ().then(()=>{if(view==="list")renderList();}).catch(()=>{});return;}
-  const dg=dueGroups().length; const gs=state.mutash.slice().sort((x,y)=>groupMist(y)-groupMist(x)||(x.due||"").localeCompare(y.due||""));
-  loadMut(); const sug=allSugg().filter(sig=>!sugDone(sig));
+  {const seen=new Set();for(const g of state.mutash){if(!g.id||seen.has(g.id))g.id="g"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);seen.add(g.id);}}
+  const dg=dueGroups().length; const gs=mtSorted(state.mutash.filter(g=>inSur(g.items)));
+  loadMut(); const sug=allSugg().filter(sig=>!sugDone(sig)&&inSur(sigItems(sig)));
+  const sk=mtSortKey();
   const shownG=mutOpenAll?gs:gs.slice(0,15);
   el.innerHTML=`<h2 class="page-t">المتشابهات</h2>
     <div class="card" style="margin-bottom:12px">${state.mutash.length?`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>مراجعة المتشابهات</b><span class="meta" style="display:block">${dg?(dg===1?"مجموعة واحدة مستحقة":dg+" مجموعات مستحقة"):"لا شيء مستحق اليوم"}</span></span><button class="btn sm" data-mqstart="${dg?"due":"all"}">${dg?"ابدأ":"راجع الكل"}</button></div>`:`<p class="help" style="margin:0">اربط الآيات المتشابهة لتراجعها معًا: من الاقتراحات أدناه، أو في المصحف بضغطة مطوّلة على كلمة.</p>`}</div>
-    ${gs.length?`<div class="section-t">متشابهاتي (${gs.length}) <span>الكلمات المختلفة ملوّنة · الأكثر خطأً أولًا</span></div>${shownG.map(g=>{const mc=groupMist(g);return groupHTML(g,mc?`<div class="meta" style="margin-top:6px;color:var(--red)">⚠️ ${errTxt(mc)} خطأ في هذه المواضع</div>`:"");}).join("")}${!mutOpenAll&&gs.length>15?`<button class="linkbtn" data-mtall="1" style="padding:6px 0">عرض الكل (${gs.length})</button>`:""}`:""}
-    <div class="section-t" style="margin-top:20px">اقتراحات (${sug.length}) <span>📚 من كتاب المتشابهات، والباقي آيات تشترك في 6 كلمات أو أكثر · اختر ما تريد</span></div>
+    <div class="card mt-tools"><label class="meta" for="mtSur">السورة</label><select id="mtSur"><option value="0">كل السور</option>${SURAHS.map((x,i)=>`<option value="${i+1}" ${mtSur===i+1?"selected":""}>${i+1}. ${esc(x[0])}</option>`).join("")}</select>${mtSur?`<button class="linkbtn sm" id="mtSurX">✕ الكل</button>`:""}</div>
+    ${state.mutash.length?`<div class="section-t">متشابهاتي (${gs.length}${mtSur?" في "+esc(SURAHS[mtSur-1][0]):""})</div>
+    <div class="chips mt-sort"><span class="meta">الترتيب:</span><button class="chip ${sk==="err"?"on":""}" data-mtsort="err">الأكثر خطأً</button><button class="chip ${sk==="msh"?"on":""}" data-mtsort="msh">ترتيب المصحف</button><button class="chip ${sk==="mine"?"on":""}" data-mtsort="mine">ترتيبي</button></div>
+    ${sk==="mine"?`<p class="help" style="margin:0 0 8px">رتّبها بالأسهم ↑ ↓، وتُراجَع بهذا الترتيب.</p>`:""}
+    ${gs.length?(mutOpenAll||mtSur?gs:gs.slice(0,15)).map((g,i,A)=>{const mc=groupMist(g);
+      return groupHTML(g,`${mc?`<div class="meta" style="margin-top:6px;color:var(--red)">⚠️ ${errTxt(mc)} خطأ في هذه المواضع</div>`:""}<div class="bar-acts mt-acts">${sk==="mine"?`<button class="btn ghost sm" data-mtup="${g.id}" ${i?"":"disabled"} aria-label="أعلى">↑</button><button class="btn ghost sm" data-mtdn="${g.id}" ${i<A.length-1?"":"disabled"} aria-label="أسفل">↓</button>`:""}<span class="grow"></span>${mtDelAsk===g.id?`<button class="btn sm" style="background:var(--red);color:#fff" data-mtdel="${g.id}">تأكيد الحذف</button><button class="btn ghost sm" data-mtdel="">إلغاء</button>`:`<button class="btn ghost sm" data-mtask="${g.id}">🗑 حذف</button>`}</div>`,true);}).join("")+(!mutOpenAll&&!mtSur&&gs.length>15?`<button class="linkbtn" data-mtall="1" style="padding:6px 0">عرض الكل (${gs.length})</button>`:""):`<p class="meta">لا متشابهات مسجّلة في هذه السورة.</p>`}`:""}
+    <div class="section-t" style="margin-top:20px">اقتراحات (${sug.length}${mtSur?" في "+esc(SURAHS[mtSur-1][0]):""}) <span>📚 من كتاب المتشابهات، والباقي آيات تشترك في 6 كلمات أو أكثر · اختر ما تريد</span></div>
     ${sug.length?sug.slice(0,sugN).map(sig=>{const its=sigItems(sig);return groupHTML({items:its,note:""},`${sigCur(sig)?`<div class="meta" style="margin-top:6px">📚 من كتاب المتشابهات</div>`:""}<div class="bar-acts" style="margin-top:8px"><button class="btn sm" data-sgadd="${sig}">سجّل</button><button class="btn ghost sm" data-sgno="${sig}">لا</button></div>`);}).join("")+(sug.length>sugN?`<button class="linkbtn" data-sgmore="1" style="padding:6px 0">المزيد</button>`:""):`<p class="meta">لا اقتراحات أخرى.</p>`}
     <p class="help">المعلَّمة بـ📚 من بيانات متشابهات القرآن للقارئ إدريس العاصم رحمه الله (مقابَلة على ترقيم قالون). الباقي محسوب آليًا من تطابق الكلمات، فقد تفوتها متشابهات تختلف في كلمة، وقد تقترح ما لا يُعدّ متشابهًا؛ فأنت تختار.</p>`;
-}
-document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-sgadd],[data-sgno],[data-sgmore],[data-mtall],[data-sugl],#sugMore");if(!t)return;const d=t.dataset;
+
+  {const ms=document.getElementById("mtSur");if(ms)ms.onchange=()=>{mtSur=Number(ms.value);mtDelAsk=null;renderList();};}}
+document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-sgadd],[data-sgno],[data-sgmore],[data-mtall],[data-sugl],#sugMore,[data-mtsort],[data-mtup],[data-mtdn],[data-mtask],[data-mtdel],[data-mtrm],#mtSurX");if(!t)return;const d=t.dataset;
+  if(d.mtsort){if(d.mtsort==="mine"&&!state.mtMine){state.mutash=mtSorted(state.mutash);state.mtMine=1;}state.mtSort=d.mtsort;save();renderList();return;}
+  if(d.mtup||d.mtdn){const id=d.mtup||d.mtdn;const vis=state.mutash.filter(g=>inSur(g.items));const i=vis.findIndex(g=>g.id===id),j=d.mtup?i-1:i+1;if(i<0||j<0||j>=vis.length)return;
+    const A=state.mutash,x=A.indexOf(vis[i]),y=A.indexOf(vis[j]);[A[x],A[y]]=[A[y],A[x]];state.mtMine=1;save();renderList();return;}
+  if(d.mtask){mtDelAsk=d.mtask;renderList();return;}
+  if(d.mtdel!==undefined){if(d.mtdel){state.mutash=state.mutash.filter(g=>g.id!==d.mtdel);save();toast("حُذفت المجموعة");}mtDelAsk=null;renderList();return;}
+  if(d.mtrm){const [id,i]=d.mtrm.split("|");const g=state.mutash.find(x=>x.id===id);if(g){unlinkLoc(g.items[Number(i)]);toast(g.items.length<2?"حُذفت المجموعة":"أُزيل الموضع");}renderList();return;}
+  if(t.id==="mtSurX"){mtSur=0;renderList();return;}
   if(d.sgadd){const its=sigItems(d.sgadd);for(let i=1;i<its.length;i++)linkLocs(its[0],its[i]);save();renderList();toast("سُجّلت "+(its.length===2?"آيتان":its.length+" آيات")+" كمتشابهات");}
   else if(d.sgno){state.mdis.push(d.sgno);save();renderList();}
   else if(d.sgmore){sugN+=10;renderList();}
@@ -1153,7 +1179,7 @@ function linkLocs(x,y){
   const gx=groupOf(x), gy=groupOf(y);
   if(gx&&gy){ if(gx===gy) return false; gx.items.push(...gy.items.filter(it=>!gx.items.some(o=>sameLoc(o,it)))); gx.note=[gx.note,gy.note].filter(Boolean).join(" | "); state.mutash=state.mutash.filter(g=>g!==gy); }
   else if(gx) gx.items.push(y); else if(gy) gy.items.push(x);
-  else state.mutash.push({id:"g"+Date.now().toString(36),items:[x,y],note:""});
+  else state.mutash.push({id:"g"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),items:[x,y],note:""});
   save(); return true;
 }
 function unlinkLoc(loc){const g=groupOf(loc);if(!g)return;g.items=g.items.filter(it=>!sameLoc(it,loc));if(g.items.length<2)state.mutash=state.mutash.filter(x=>x!==g);save();}
@@ -1386,7 +1412,7 @@ function bindSearch(){
 function groupDue(g){return (g.due||"")<=today();}
 function dueGroups(){return state.mutash.filter(groupDue);}
 let mq=null; // {ids, i, k, shown}
-function startMQ(all){let gs=all?state.mutash:dueGroups(); if(HUF()) gs=gs.slice().sort((x,y)=>groupMist(y)-groupMist(x));if(!gs.length){toast("لا متشابهات مستحقة للمراجعة الآن");return;}
+function startMQ(all){let gs=all?state.mutash:dueGroups(); if(HUF()) gs=mtSorted(gs.slice().sort((x,y)=>state.mutash.indexOf(x)-state.mutash.indexOf(y)));if(!gs.length){toast("لا متشابهات مستحقة للمراجعة الآن");return;}
   loadQ().then(()=>{mq={ids:gs.map(g=>g.id),i:0,k:0,shown:false};setView("mquiz");}).catch(()=>toast("تعذّر تحميل المصحف"));}
 function mqPrompt(it){const ws=locWords(it);const r=locRange(it);
   if(!r||r[0]===0){return {ctx:"",ask:r?"كيف تبدأ هذه الآية؟":"اقرأ هذه الآية"};}
