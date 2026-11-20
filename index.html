@@ -508,7 +508,7 @@ function unitShort(u){return u.k==="g"?GRP[u.n-1][2]:SURAHS[u.n-1][0];}
 function unitKeys(u){const [a,b]=unitSur(u);let o=[];for(let n=a;n<=b;n++)o=o.concat(mistKeysIn(n,1,SURAHS[n-1][1]));return o;}
 function unitList(){const o=[];for(let n=1;n<51;n++)o.push({k:"s",n});for(let g=1;g<=4;g++)o.push({k:"g",n:g});return o;}
 function unitNum(u){return u.k==="g"?"ج":u.n;}
-function normRv(a){if(!Array.isArray(a))return [];const seen=new Set();return a.filter(x=>x&&(x.k==="s"&&x.n>=1&&x.n<=114||x.k==="p"&&x.n>=1&&x.n<=604||x.k==="g"&&x.n>=1&&x.n<=4)).map(x=>{const o=x.k==="s"?unitOf(Math.round(Number(x.n))):{k:x.k,n:Math.round(Number(x.n))};if(/^\d{4}-\d\d-\d\d$/.test(x.d||""))o.d=x.d;return o;}).filter(x=>{const k=x.k+x.n;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,800);}
+function normRv(a){if(!Array.isArray(a))return [];const seen=new Set();return a.filter(x=>x&&(x.k==="s"&&x.n>=1&&x.n<=114||x.k==="p"&&x.n>=1&&x.n<=604||x.k==="r"&&x.n>=1&&x.e>x.n&&x.e<=604||x.k==="g"&&x.n>=1&&x.n<=4)).map(x=>{const o=x.k==="s"?unitOf(Math.round(Number(x.n))):{k:x.k,n:Math.round(Number(x.n))};if(x.k==="r")o.e=Math.round(Number(x.e));if(/^\d{4}-\d\d-\d\d$/.test(x.d||""))o.d=x.d;return o;}).filter(x=>{const k=x.k+x.n+(x.e?"-"+x.e:"");if(seen.has(k))return false;seen.add(k);return true;}).slice(0,800);}
 function wholeSurahs(items){
   const by={}; for(const it of Object.values(items||{})) if(it&&it.s>=1&&it.s<=114)(by[it.s]=by[it.s]||[]).push(it);
   const out={};
@@ -913,10 +913,10 @@ function revOk(d){return HUF()?(state.log[d]||0)>0:(state.rH[d]||0)>=state.goalH
 function rvHas(k,n){return state.rv.some(x=>x.k===k&&x.n===n);}
 function rvAdd(k,n){if(rvHas(k,n)){toast("موجودة في مراجعتي من قبل");return;}state.rv.push({k,n});save();render();toast((k==="p"?"صفحة "+n:unitName({k,n}))+" أُضيفت إلى مراجعتي");}
 function rvPageRange(p){if(!PAGE_IDX)return null;const l=PAGE_IDX[p];if(!l||!l.length)return null;return {f:l[0],t:l[l.length-1]};}
-function rvTitle(x){if(x.k!=="p")return unitName(x);return "صفحة "+x.n;}
-function rvSub(x){if(x.k==="g"){const [a,b]=unitSur(x);let h=0;for(let n=a;n<=b;n++)h+=HIZB[n-1];return "من سورة "+SURAHS[a-1][0]+" إلى سورة "+SURAHS[b-1][0]+" · "+fmtH(h)+" حزب";}if(x.k==="s")return SURAHS[x.n-1][1]+" آية · "+fmtH(HIZB[x.n-1])+" حزب";const r=rvPageRange(x.n);if(!r)return "";const [s1,a1]=r.f,[s2,a2]=r.t;return s1===s2?"سورة "+SURAHS[s1-1][0]+" "+a1+"–"+a2:"سورة "+SURAHS[s1-1][0]+" "+a1+" – سورة "+SURAHS[s2-1][0]+" "+a2;}
-function rvSize(x){if(x.k==="p")return 60/604;const [a,b]=unitSur(x);let h=0;for(let n=a;n<=b;n++)h+=HIZB[n-1];return h;}
-function rvMistKeys(x){if(x.k!=="p")return unitKeys(x);if(!PAGE_IDX)return [];return PAGE_IDX[x.n].map(([s0,a])=>s0+":"+a).filter(k=>state.mistakes[k]);}
+function rvTitle(x){if(x.k==="r")return "من صفحة "+x.n+" إلى صفحة "+x.e;if(x.k!=="p")return unitName(x);return "صفحة "+x.n;}
+function rvSub(x){if(x.k==="g"){const [a,b]=unitSur(x);let h=0;for(let n=a;n<=b;n++)h+=HIZB[n-1];return "من سورة "+SURAHS[a-1][0]+" إلى سورة "+SURAHS[b-1][0]+" · "+fmtH(h)+" حزب";}if(x.k==="s")return SURAHS[x.n-1][1]+" آية · "+fmtH(HIZB[x.n-1])+" حزب";const r=rvPageRange(x.n),r2=x.k==="r"?rvPageRange(x.e):r;if(!r||!r2)return "";const [s1,a1]=r.f,[s2,a2]=r2.t;if(x.k==="r")return pagesTxt(x.e-x.n+1)+" · سورة "+SURAHS[s1-1][0]+" "+a1+" – "+(s1===s2?"":"سورة "+SURAHS[s2-1][0]+" ")+a2;return s1===s2?"سورة "+SURAHS[s1-1][0]+" "+a1+"–"+a2:"سورة "+SURAHS[s1-1][0]+" "+a1+" – سورة "+SURAHS[s2-1][0]+" "+a2;}
+function rvSize(x){if(x.k==="p")return 60/604;if(x.k==="r")return (x.e-x.n+1)*60/604;const [a,b]=unitSur(x);let h=0;for(let n=a;n<=b;n++)h+=HIZB[n-1];return h;}
+function rvMistKeys(x){if(x.k!=="p"&&x.k!=="r")return unitKeys(x);if(!PAGE_IDX)return [];const o=[];for(let p=x.n;p<=(x.k==="r"?x.e:x.n);p++)PAGE_IDX[p].forEach(([s0,a])=>{const k=s0+":"+a;if(state.mistakes[k])o.push(k);});return o;}
 function rvToggle(i){const x=state.rv[i];if(!x)return;const t=today();
   if(x.d===t){delete x.d;state.log[t]=Math.max(0,(state.log[t]||0)-1);if(!state.log[t])delete state.log[t];state.rH[t]=Math.max(0,(state.rH[t]||0)-rvSize(x));if(state.rH[t]<0.001)delete state.rH[t];}
   else {x.d=t;state.log[t]=(state.log[t]||0)+1;state.rH[t]=(state.rH[t]||0)+rvSize(x);pruneLog();}
@@ -924,12 +924,12 @@ function rvToggle(i){const x=state.rv[i];if(!x)return;const t=today();
 function rvDaysAgo(x){if(!x.d)return "لم تُراجع بعد";const k=diffDays(today(),x.d);return k===0?"راجعتها اليوم ✓":k===1?"آخر مراجعة: أمس":"آخر مراجعة: قبل "+daysTxt(k);}
 function renderMyRev(){
   const el=document.getElementById("v-today"); const L=state.rv; const t=today();
-  if(!PAGE_IDX&&L.some(x=>x.k==="p")){loadQ().then(()=>{if(view==="today")render();}).catch(()=>{});}
+  if(!PAGE_IDX&&L.some(x=>x.k==="p"||x.k==="r")){loadQ().then(()=>{if(view==="today")render();}).catch(()=>{});}
   const done=L.filter(x=>x.d===t).length;
   el.innerHTML=`<h2 class="page-t">مراجعتي</h2>
     ${L.length?`<p class="meta" style="margin:-6px 0 10px">${L.length===1?"عنصر واحد":L.length===2?"عنصران":L.length<=10?L.length+" عناصر":L.length+" عنصرًا"} · راجعت اليوم ${done} · رتّبها كما تريد بالأسهم</p>`:`<div class="card empty"><p class="meta">أضف ما تريد مراجعته: سورة كاملة أو صفحة. من هنا، أو من المصحف بزرّي «＋ الصفحة» و«＋ السورة».</p></div>`}
     ${L.map((x,i)=>{const ks=rvMistKeys(x);const dn=x.d===t;
-      return `<div class="item rv${dn?" rv-done":""}"><div class="top"><div class="num">${x.k==="p"?"ص":unitNum(x)}</div>
+      return `<div class="item rv${dn?" rv-done":""}"><div class="top"><div class="num">${x.k==="p"||x.k==="r"?"ص":unitNum(x)}</div>
         <div class="grow"><div class="name">${rvTitle(x)}</div><div class="meta">${esc(rvSub(x))}</div><div class="meta">${rvDaysAgo(x)}</div></div>
         <div class="rv-ord"><button data-rvup="${i}" ${i===0?"disabled":""} aria-label="إلى الأعلى">▲</button><button data-rvdn="${i}" ${i===L.length-1?"disabled":""} aria-label="إلى الأسفل">▼</button></div></div>
         ${ks.length?mistBtnHTML("r"+x.k+x.n,ks):""}
@@ -937,9 +937,13 @@ function renderMyRev(){
         <button class="btn${dn?" ghost":""} rv-chk" data-rvchk="${i}">${dn?"✓ راجعتها اليوم":"راجعتها"}</button></div>`;}).join("")}
     <div class="card" style="margin-top:14px"><div style="font-weight:600">إضافة</div>
       <div class="seg-form" style="margin-top:8px"><select id="rvS" style="font:inherit;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--card);color:var(--ink);flex:1">${unitList().map(u=>`<option value="${u.k}${u.n}">${u.k==="s"?u.n+". "+SURAHS[u.n-1][0]:unitName(u)}</option>`).join("")}</select><button class="btn" id="rvSAdd">＋ أضف</button></div>
-      <div class="seg-form" style="margin-top:8px"><label class="meta">صفحة <input type="number" id="rvP" min="1" max="604" placeholder="مثلًا 50"></label><button class="btn" id="rvPAdd">＋ الصفحة</button></div></div>`;
+      <div class="seg-form" style="margin-top:8px"><label class="meta">من صفحة <input type="number" id="rvP" min="1" max="604" placeholder="50"></label><label class="meta">إلى صفحة <input type="number" id="rvP2" min="1" max="604" placeholder="اختياري"></label><button class="btn" id="rvPAdd">＋ أضف</button></div></div>`;
   document.getElementById("rvSAdd").onclick=()=>{const v=document.getElementById("rvS").value;rvAdd(v[0],Number(v.slice(1)));};
-  document.getElementById("rvPAdd").onclick=()=>{const p=Math.round(Number(document.getElementById("rvP").value));if(!(p>=1&&p<=604)){toast("أدخل رقم صفحة بين 1 و604");return;}rvAdd("p",p);};
+  document.getElementById("rvPAdd").onclick=()=>{const p=Math.round(Number(document.getElementById("rvP").value));const v2=document.getElementById("rvP2").value;const q=v2===""?p:Math.round(Number(v2));
+    if(!(p>=1&&p<=604)||!(q>=1&&q<=604)){toast("أدخل رقم صفحة بين 1 و604");return;}
+    const a=Math.min(p,q),b=Math.max(p,q); if(a===b){rvAdd("p",a);return;}
+    if(state.rv.some(x=>x.k==="r"&&x.n===a&&x.e===b)){toast("موجودة في مراجعتي من قبل");return;}
+    state.rv.push({k:"r",n:a,e:b});save();render();toast("من صفحة "+a+" إلى صفحة "+b+" أُضيفت إلى مراجعتي");};
 }
 function rvMushafHTML(){
   if(!PAGE_IDX||!PAGE_IDX[mPage]||!PAGE_IDX[mPage].length) return "";
