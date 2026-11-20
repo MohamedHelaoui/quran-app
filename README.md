@@ -50,3 +50,10 @@ python3 tools/build_themes.py ayah_theme.sqlite themes.json
 ```
 python3 tools/build_tafsir.py PATH/TO/tafsir_api/tafsir tf
 ```
+
+## المتشابهات المعروفة (📚)
+في وضع الحفّاظ تظهر أولًا في اقتراحات المتشابهات (لوحة الآية وصفحة «المتشابهات») المواضعُ المعلَّمة بـ📚، من بيانات متشابهات القرآن للقارئ إدريس العاصم رحمه الله: [Waqar144/Quran_Mutashabihat_Data](https://github.com/Waqar144/Quran_Mutashabihat_Data) (رخصة CC0)، مقابَلةً على ترقيم قالون في `mut.json`. لإعادة بنائه:
+
+```
+python3 tools/build_mut.py PATH/TO/mutashabiha_data.json mut.json
+```

@@ -839,6 +839,16 @@ function simAyat(sn,a){
   const need=W.length<=6?1:2;
   return [...sc.entries()].filter(([,c])=>c>=need).sort((x,y)=>y[1]-x[1]||x[0]-y[0]).slice(0,12).map(([id])=>({s:Math.floor(id/1000),a:id%1000}));
 }
+// curated mutashabihat (mut.json, Qalun numbering), loaded on first use
+let MT=null, mtLoading=null, MTI=null, CSETS=[];
+function loadMut(){if(MT||mtLoading)return;mtLoading=fetch("mut.json").then(r=>{if(!r.ok)throw new Error("http");return r.json();}).then(d=>{MT=d.g;MTI=new Map();CSETS=[];
+  for(const g of MT){const n=Math.max(...g.map(o=>o[2]-o[1]+1));for(let i=0;i<n;i++)CSETS.push(new Set([...new Set(g.map(o=>o[0]*1000+Math.min(o[1]+i,o[2])))].map(id=>Math.floor(id/1000)+":"+id%1000)));
+    for(const r of g)for(let a=r[1];a<=r[2];a++){const id=r[0]*1000+a;let l=MTI.get(id);if(!l){l=[];MTI.set(id,l);}for(const o of g){if(o===r)continue;const oid=o[0]*1000+Math.min(o[1]+a-r[1],o[2]);if(oid!==id&&!l.includes(oid))l.push(oid);}}}
+  SUGG=null;if(view==="mushaf")renderMushaf();else if(view==="list")renderList();}).catch(()=>{mtLoading=null;});}
+function curAyat(sn,a){loadMut();return ((MTI&&MTI.get(sn*1000+a))||[]).map(id=>({s:Math.floor(id/1000),a:id%1000,c:1}));}
+// curated first, then the computed ones
+function simAll(sn,a){const c=curAyat(sn,a);return c.concat(simAyat(sn,a).filter(x=>!c.some(y=>y.s===x.s&&y.a===x.a)));}
+function sigCur(sig){const S=new Set(sig.split(","));return CSETS.some(c=>[...c].every(x=>S.has(x)));}
 // for each word of A: is it also in B (longest common subsequence on letters only)
 function lcsMatch(A,B){const n=A.length,m=B.length;const L=Array.from({length:n+1},()=>new Uint16Array(m+1));
   for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=A[i]===B[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
@@ -857,12 +867,12 @@ function diffHTML(it,others,opts){
 // suggestions inside the selection panel (long press)
 let sugAll=false;
 function sugPanelHTML(L){
-  const list=simAyat(L.s,L.a); if(!list.length) return "";
+  const list=simAll(L.s,L.a); if(!list.length) return "";
   const me={s:L.s,a:L.a,w:null}; const g=groupOf(me);
   const shown=sugAll?list:list.slice(0,4);
-  return `<div class="sug"><div class="meta" style="color:var(--ink);font-weight:600">آيات تشبهها (${list.length})</div>
+  return `<div class="sug"><div class="meta" style="color:var(--ink);font-weight:600">آيات تشبهها (${list.length})${list.some(x=>x.c)?` <span style="font-weight:400">· 📚 من كتاب المتشابهات</span>`:""}</div>
     ${shown.map(x=>{const lk=g&&g.items.some(o=>o.s===x.s&&o.a===x.a);const loc={s:x.s,a:x.a,w:null};
-      return `<div class="sug-it"><div class="grow"><button class="linkbtn sm" data-goloc="${x.s}:${x.a}::">${esc(SURAHS[x.s-1][0])} ${x.a}</button><div class="mq">${diffHTML(loc,[me],{full:true,noNext:true})}</div></div>${lk?`<span class="meta">✓ مربوطة</span>`:`<button class="btn sm" data-sugl="${x.s}:${x.a}">＋ اربط</button>`}</div>`;}).join("")}
+      return `<div class="sug-it"><div class="grow"><button class="linkbtn sm" data-goloc="${x.s}:${x.a}::">${x.c?"📚 ":""}${esc(SURAHS[x.s-1][0])} ${x.a}</button><div class="mq">${diffHTML(loc,[me],{full:true,noNext:true})}</div></div>${lk?`<span class="meta">✓ مربوطة</span>`:`<button class="btn sm" data-sugl="${x.s}:${x.a}">＋ اربط</button>`}</div>`;}).join("")}
     ${!sugAll&&list.length>4?`<button class="linkbtn sm" id="sugMore">عرض الباقي (${list.length-4})</button>`:""}</div>`;
 }
 // list of suggested groups over the whole Quran: ayat sharing a run of 6 words or more
@@ -870,6 +880,7 @@ let SUGG=null;
 function allSugg(){
   if(SUGG) return SUGG; if(!G6) G6=gramIdx(6);
   const seen=new Set(), out=[];
+  for(const c of CSETS){const sig=[...c].sort((x,y)=>{const [a1,b1]=x.split(":").map(Number),[a2,b2]=y.split(":").map(Number);return a1-a2||b1-b2;}).join(",");if(c.size>1&&!seen.has(sig)){seen.add(sig);out.push(sig);}}
   for(const l of G6.values()){const u=[...new Set(l)];if(u.length<2||u.length>8)continue;const sig=u.sort((x,y)=>x-y).map(id=>Math.floor(id/1000)+":"+id%1000).join(",");if(seen.has(sig))continue;seen.add(sig);out.push(sig);}
   // drop a group whose ayat are all inside a bigger group
   const sets=out.map(sig=>new Set(sig.split(",")));
@@ -886,14 +897,14 @@ function renderMutTab(){
   const el=document.getElementById("v-list");
   if(!Q){el.innerHTML=`<h2 class="page-t">المتشابهات</h2><div class="card empty"><p class="meta">جارٍ التحميل…</p></div>`;loadQ().then(()=>{if(view==="list")renderList();}).catch(()=>{});return;}
   const dg=dueGroups().length; const gs=state.mutash.slice().sort((x,y)=>groupMist(y)-groupMist(x)||(x.due||"").localeCompare(y.due||""));
-  const sug=allSugg().filter(sig=>!sugDone(sig));
+  loadMut(); const sug=allSugg().filter(sig=>!sugDone(sig));
   const shownG=mutOpenAll?gs:gs.slice(0,15);
   el.innerHTML=`<h2 class="page-t">المتشابهات</h2>
     <div class="card" style="margin-bottom:12px">${state.mutash.length?`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>مراجعة المتشابهات</b><span class="meta" style="display:block">${dg?(dg===1?"مجموعة واحدة مستحقة":dg+" مجموعات مستحقة"):"لا شيء مستحق اليوم"}</span></span><button class="btn sm" data-mqstart="${dg?"due":"all"}">${dg?"ابدأ":"راجع الكل"}</button></div>`:`<p class="help" style="margin:0">اربط الآيات المتشابهة لتراجعها معًا: من الاقتراحات أدناه، أو في المصحف بضغطة مطوّلة على كلمة.</p>`}</div>
     ${gs.length?`<div class="section-t">متشابهاتي (${gs.length}) <span>الكلمات المختلفة ملوّنة · الأكثر خطأً أولًا</span></div>${shownG.map(g=>{const mc=groupMist(g);return groupHTML(g,mc?`<div class="meta" style="margin-top:6px;color:var(--red)">⚠️ ${errTxt(mc)} خطأ في هذه المواضع</div>`:"");}).join("")}${!mutOpenAll&&gs.length>15?`<button class="linkbtn" data-mtall="1" style="padding:6px 0">عرض الكل (${gs.length})</button>`:""}`:""}
-    <div class="section-t" style="margin-top:20px">اقتراحات (${sug.length}) <span>آيات تشترك في 6 كلمات أو أكثر · اختر ما تريد</span></div>
-    ${sug.length?sug.slice(0,sugN).map(sig=>{const its=sigItems(sig);return groupHTML({items:its,note:""},`<div class="bar-acts" style="margin-top:8px"><button class="btn sm" data-sgadd="${sig}">سجّل</button><button class="btn ghost sm" data-sgno="${sig}">لا</button></div>`);}).join("")+(sug.length>sugN?`<button class="linkbtn" data-sgmore="1" style="padding:6px 0">المزيد</button>`:""):`<p class="meta">لا اقتراحات أخرى.</p>`}
-    <p class="help">الاقتراحات محسوبة آليًا من تطابق الكلمات، فقد تفوتها متشابهات تختلف في كلمة، وقد تقترح ما لا يُعدّ متشابهًا؛ فأنت تختار.</p>`;
+    <div class="section-t" style="margin-top:20px">اقتراحات (${sug.length}) <span>📚 من كتاب المتشابهات، والباقي آيات تشترك في 6 كلمات أو أكثر · اختر ما تريد</span></div>
+    ${sug.length?sug.slice(0,sugN).map(sig=>{const its=sigItems(sig);return groupHTML({items:its,note:""},`${sigCur(sig)?`<div class="meta" style="margin-top:6px">📚 من كتاب المتشابهات</div>`:""}<div class="bar-acts" style="margin-top:8px"><button class="btn sm" data-sgadd="${sig}">سجّل</button><button class="btn ghost sm" data-sgno="${sig}">لا</button></div>`);}).join("")+(sug.length>sugN?`<button class="linkbtn" data-sgmore="1" style="padding:6px 0">المزيد</button>`:""):`<p class="meta">لا اقتراحات أخرى.</p>`}
+    <p class="help">المعلَّمة بـ📚 من بيانات متشابهات القرآن للقارئ إدريس العاصم رحمه الله (مقابَلة على ترقيم قالون). الباقي محسوب آليًا من تطابق الكلمات، فقد تفوتها متشابهات تختلف في كلمة، وقد تقترح ما لا يُعدّ متشابهًا؛ فأنت تختار.</p>`;
 }
 document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-sgadd],[data-sgno],[data-sgmore],[data-mtall],[data-sugl],#sugMore");if(!t)return;const d=t.dataset;
   if(d.sgadd){const its=sigItems(d.sgadd);for(let i=1;i<its.length;i++)linkLocs(its[0],its[i]);save();renderList();toast("سُجّلت "+(its.length===2?"آيتان":its.length+" آيات")+" كمتشابهات");}
@@ -2181,7 +2192,7 @@ function renderMushaf(){
     document.getElementById("selClose").onclick=()=>{mSel=null;noteEdit=false;renderMushaf();};
     const sc=document.getElementById("selScope"); if(sc) sc.onclick=()=>{mSel={s:S.s,a:S.a,w:null};selAnchor=null;renderMushaf();};
     const gc=document.getElementById("gNoteCancel"); if(gc) gc.onclick=()=>{noteEdit=false;renderMushaf();};
-    document.getElementById("selAdd").onclick=()=>{addMistakeLoc(S);if(HUF()&&!groupOf({s:S.s,a:S.a,w:null})){const k=simAyat(S.s,S.a).length;if(k){toast("سُجّل الخطأ · هذه الآية تشبه "+(k===1?"آية أخرى":k+" آيات")+"، اختر ما تربطه بها أدناه");renderMushaf();const sg=document.querySelector(".aya-bar .sug");if(sg)sg.scrollIntoView({block:"nearest"});return;}}toast(S.w===null?"سُجّل الخطأ في الآية "+S.a:(S.we!==undefined&&S.we!==null?"سُجّل الخطأ في العبارة":"سُجّل الخطأ في الكلمة"));renderMushaf();};
+    document.getElementById("selAdd").onclick=()=>{addMistakeLoc(S);if(HUF()&&!groupOf({s:S.s,a:S.a,w:null})){const k=simAll(S.s,S.a).length;if(k){toast("سُجّل الخطأ · هذه الآية تشبه "+(k===1?"آية أخرى":k+" آيات")+"، اختر ما تربطه بها أدناه");renderMushaf();const sg=document.querySelector(".aya-bar .sug");if(sg)sg.scrollIntoView({block:"nearest"});return;}}toast(S.w===null?"سُجّل الخطأ في الآية "+S.a:(S.we!==undefined&&S.we!==null?"سُجّل الخطأ في العبارة":"سُجّل الخطأ في الكلمة"));renderMushaf();};
     const dd=document.getElementById("selDec"); if(dd) dd.onclick=()=>{decMistakeLoc(S);renderMushaf();};
     const cl=document.getElementById("selClr"); if(cl) cl.onclick=()=>{clearMistakeLoc(S);toast("أُزيلت العلامة");renderMushaf();};
     document.getElementById("mshAdd").onclick=()=>{linkFrom=cleanLoc(S);linkTo=null;mSel=null;selAnchor=null;noteEdit=false;if(mMode){mMode=0;clearRev();}renderMushaf();};
