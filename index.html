@@ -375,6 +375,15 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .mode-opt span{display:block;font-size:13px;color:var(--muted);margin-top:4px;line-height:1.7}
 .mode-opt:hover,.mode-opt:focus-visible{border-color:var(--gold-leaf);outline:0}
 .seg-mode .aya{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.dif{color:var(--red);font-weight:700}
+.nxt{color:var(--muted);font-size:.85em}
+.sug{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.sug-it,.mt-it{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px dashed var(--line)}
+.sug-it:last-of-type,.mt-it:last-of-type{border-bottom:0}
+.sug-it .grow,.mt-it .mq{flex:1;min-width:0}
+.sug .mq,.mt-it .mq{font-family:"Qaloon",serif;font-size:21px;line-height:2}
+.mt-it{flex-direction:column;gap:0}
+.mt-g{margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -447,7 +456,7 @@ function idOf(s,from,to){return s+"_"+from+"_"+to;}
 function normalize(src){
   if(!src||typeof src!=="object") src={};
   // default daily goal is 3 ahzab; a goal the user chose (goalSet) is kept
-  const out={v:2,updatedAt:Number(src.updatedAt)||0,items:{},log:{},goalH:(src.goalSet&&Number(src.goalH)>0)?Number(src.goalH):3,goalSet:!!src.goalSet,hlog:(src.hlog&&typeof src.hlog==="object")?JSON.parse(JSON.stringify(src.hlog)):{},plan:normPlan(src.plan),adh:(src.adh&&src.adh.date===today()&&typeof src.adh.p==="object")?JSON.parse(JSON.stringify(src.adh)):{date:today(),p:{}},rH:cp(src.rH),tsb:normTsb(src.tsb),mlog:cp(src.mlog),qada:normQada(src.qada),prayer:(src.prayer&&src.prayer.days&&typeof src.prayer.days==="object")?{name:String(src.prayer.name||"").slice(0,80),tz:String(src.prayer.tz||"Europe/Berlin"),days:cp(src.prayer.days)}:null,recent:{on:!(src.recent&&src.recent.on===false),days:[7,14,30,40,60].includes(Number(src.recent&&src.recent.days))?Number(src.recent.days):30},kh:normKh(src.kh),khDone:Array.isArray(src.khDone)?src.khDone.filter(x=>typeof x==="string").slice(-200):[],habits:Array.isArray(src.habits)?src.habits.filter(h=>h&&h.id&&h.n).map(h=>({id:String(h.id),n:String(h.n).slice(0,40)})):[],hdone:cp(src.hdone),adhLog:(src.adhLog&&typeof src.adhLog==="object")?JSON.parse(JSON.stringify(src.adhLog)):{},mode:(src.mode==="hifdh"||src.mode==="huffaz")?src.mode:"",stash:(src.stash&&typeof src.stash==="object"&&!Array.isArray(src.stash))?JSON.parse(JSON.stringify(src.stash)):{}};
+  const out={v:2,updatedAt:Number(src.updatedAt)||0,items:{},log:{},goalH:(src.goalSet&&Number(src.goalH)>0)?Number(src.goalH):3,goalSet:!!src.goalSet,hlog:(src.hlog&&typeof src.hlog==="object")?JSON.parse(JSON.stringify(src.hlog)):{},plan:normPlan(src.plan),adh:(src.adh&&src.adh.date===today()&&typeof src.adh.p==="object")?JSON.parse(JSON.stringify(src.adh)):{date:today(),p:{}},rH:cp(src.rH),tsb:normTsb(src.tsb),mlog:cp(src.mlog),qada:normQada(src.qada),prayer:(src.prayer&&src.prayer.days&&typeof src.prayer.days==="object")?{name:String(src.prayer.name||"").slice(0,80),tz:String(src.prayer.tz||"Europe/Berlin"),days:cp(src.prayer.days)}:null,recent:{on:!(src.recent&&src.recent.on===false),days:[7,14,30,40,60].includes(Number(src.recent&&src.recent.days))?Number(src.recent.days):30},kh:normKh(src.kh),khDone:Array.isArray(src.khDone)?src.khDone.filter(x=>typeof x==="string").slice(-200):[],habits:Array.isArray(src.habits)?src.habits.filter(h=>h&&h.id&&h.n).map(h=>({id:String(h.id),n:String(h.n).slice(0,40)})):[],hdone:cp(src.hdone),adhLog:(src.adhLog&&typeof src.adhLog==="object")?JSON.parse(JSON.stringify(src.adhLog)):{},mode:(src.mode==="hifdh"||src.mode==="huffaz")?src.mode:"",stash:(src.stash&&typeof src.stash==="object"&&!Array.isArray(src.stash))?JSON.parse(JSON.stringify(src.stash)):{},mdis:Array.isArray(src.mdis)?src.mdis.filter(x=>typeof x==="string").slice(-3000):[]};
   const fromHafs=src.v!==2;
   out.mistakes={};
   if(src.mistakes&&typeof src.mistakes==="object"){for(const [k,v] of Object.entries(src.mistakes)){const [sn,a]=k.split(":").map(Number);if(sn>=1&&sn<=114&&a>=1&&a<=SURAHS[sn-1][1]&&v&&v.c>0)out.mistakes[k]=normMist(v);}}
@@ -757,7 +766,7 @@ function setMode(m){
   save(); render(); setView("today"); window.scrollTo(0,0);
   toast(m==="huffaz"?"وضع مراجعة الحفّاظ: جُهّز جدول مراجعة القرآن كاملًا":"وضع الحفظ + المراجعة");
 }
-function applyModeUI(){const b=document.querySelector('.tabbar button[data-v="list"] span'); if(b) b.textContent=HUF()?"السور":"حفظي";}
+function applyModeUI(){const b=document.querySelector('.tabbar button[data-v="list"] span'); if(b) b.textContent=HUF()?"المتشابهات":"حفظي";}
 function renderModePicker(){
   const ex=document.getElementById("modePick");
   if(!modeReady||state.mode||document.getElementById("auth")){ if(ex) ex.remove(); return; }
@@ -771,6 +780,93 @@ function renderModePicker(){
   document.querySelectorAll("#modePick [data-pick]").forEach(b=>b.onclick=()=>setMode(b.dataset.pick));
 }
 function surDue(n){const sg=segs(n);if(!sg.length)return "";const m=sg.map(([,it])=>it.due).sort()[0];const d=diffDays(m,today());return d<=0?"مستحقة":"بعد "+daysTxt(d);}
+
+
+// ---- Similar ayat (huffaz mode): suggestions, differences, list ----
+function relist(){if(view==="stats")renderStats();else renderList();}
+function groupMist(g){return g.items.reduce((a,it)=>a+((state.mistakes[it.s+":"+it.a]||{}).c||0),0);}
+let G4=null,G6=null;
+function gramIdx(n){const N=normIndex();const m=new Map();for(let s=0;s<114;s++)for(let a=0;a<N[s].length;a++){const W=N[s][a].filter(Boolean);for(let i=0;i+n<=W.length;i++){const k=W.slice(i,i+n).join(" ");let l=m.get(k);if(!l){l=[];m.set(k,l);}const id=(s+1)*1000+a+1;if(l[l.length-1]!==id)l.push(id);}}return m;}
+// ayat that share a run of at least 5 words with this one (4 for short ayat), best first
+function simAyat(sn,a){
+  if(!Q) return []; if(!G4) G4=gramIdx(4);
+  const W=normIndex()[sn-1][a-1].filter(Boolean); if(W.length<4) return [];
+  const sc=new Map(), me=sn*1000+a;
+  for(let i=0;i+4<=W.length;i++){const l=G4.get(W.slice(i,i+4).join(" "));if(!l||l.length>60)continue;for(const id of new Set(l))if(id!==me)sc.set(id,(sc.get(id)||0)+1);}
+  const need=W.length<=6?1:2;
+  return [...sc.entries()].filter(([,c])=>c>=need).sort((x,y)=>y[1]-x[1]||x[0]-y[0]).slice(0,12).map(([id])=>({s:Math.floor(id/1000),a:id%1000}));
+}
+// for each word of A: is it also in B (longest common subsequence on letters only)
+function lcsMatch(A,B){const n=A.length,m=B.length;const L=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=A[i]===B[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+  const r=new Array(n).fill(false);let i=0,j=0;while(i<n&&j<m){if(A[i]===B[j]){r[i]=true;i++;j++;}else if(L[i+1][j]>=L[i][j+1])i++;else j++;}return r;}
+function locSpan(it){const len=locWords(it).length;const r=locRange(it);return r?[Math.max(0,r[0]-4),Math.min(len-1,r[1]+6)]:[0,len-1];}
+// text of a place with the words that differ from the other places highlighted, then the start of the next ayah
+function diffHTML(it,others,opts){
+  const ws=locWords(it); const N=normIndex(); const [x0,x1]=opts&&opts.full?[0,ws.length-1]:locSpan(it);
+  const A=N[it.s-1][it.a-1].slice(x0,x1+1); const ok=new Array(A.length).fill(false);
+  for(const o of others){const [y0,y1]=opts&&opts.full?[0,locWords(o).length-1]:locSpan(o);const m=lcsMatch(A,N[o.s-1][o.a-1].slice(y0,y1+1));m.forEach((v,i)=>{if(v)ok[i]=true;});}
+  let t=ws.slice(x0,x1+1).map((w,i)=>A[i]&&!ok[i]?`<span class="dif">${esc(w)}</span>`:esc(w)).join(" ");
+  if(x0>0)t="… "+t; if(x1<ws.length-1)t+=" …"; else t+=" "+esc(ayaParts(Q.t[it.s-1][it.a-1]).num);
+  if(!(opts&&opts.noNext)&&x1>=ws.length-1&&it.a<SURAHS[it.s-1][1]){const nw=locWords({s:it.s,a:it.a+1});t+=` <span class="nxt">ثم: ${esc(nw.slice(0,3).join(" "))} …</span>`;}
+  return t;
+}
+// suggestions inside the selection panel (long press)
+let sugAll=false;
+function sugPanelHTML(L){
+  const list=simAyat(L.s,L.a); if(!list.length) return "";
+  const me={s:L.s,a:L.a,w:null}; const g=groupOf(me);
+  const shown=sugAll?list:list.slice(0,4);
+  return `<div class="sug"><div class="meta" style="color:var(--ink);font-weight:600">آيات تشبهها (${list.length})</div>
+    ${shown.map(x=>{const lk=g&&g.items.some(o=>o.s===x.s&&o.a===x.a);const loc={s:x.s,a:x.a,w:null};
+      return `<div class="sug-it"><div class="grow"><button class="linkbtn sm" data-goloc="${x.s}:${x.a}::">${esc(SURAHS[x.s-1][0])} ${x.a}</button><div class="mq">${diffHTML(loc,[me],{full:true,noNext:true})}</div></div>${lk?`<span class="meta">✓ مربوطة</span>`:`<button class="btn sm" data-sugl="${x.s}:${x.a}">＋ اربط</button>`}</div>`;}).join("")}
+    ${!sugAll&&list.length>4?`<button class="linkbtn sm" id="sugMore">عرض الباقي (${list.length-4})</button>`:""}</div>`;
+}
+// list of suggested groups over the whole Quran: ayat sharing a run of 6 words or more
+let SUGG=null;
+function allSugg(){
+  if(SUGG) return SUGG; if(!G6) G6=gramIdx(6);
+  const seen=new Set(), out=[];
+  for(const l of G6.values()){const u=[...new Set(l)];if(u.length<2||u.length>8)continue;const sig=u.sort((x,y)=>x-y).map(id=>Math.floor(id/1000)+":"+id%1000).join(",");if(seen.has(sig))continue;seen.add(sig);out.push(sig);}
+  // drop a group whose ayat are all inside a bigger group
+  const sets=out.map(sig=>new Set(sig.split(",")));
+  SUGG=out.filter((sig,i)=>!sets.some((o,j)=>j!==i&&o.size>sets[i].size&&[...sets[i]].every(x=>o.has(x)))).sort((x,y)=>{const [a1,b1]=x.split(",")[0].split(":").map(Number),[a2,b2]=y.split(",")[0].split(":").map(Number);return a1-a2||b1-b2;});
+  return SUGG;
+}
+function sigItems(sig){return sig.split(",").map(k=>{const [s,a]=k.split(":").map(Number);return {s,a,w:null};});}
+function sugDone(sig){if(state.mdis.includes(sig))return true;const its=sigItems(sig);const g=groupOf(its[0]);return !!g&&its.every(it=>g.items.some(o=>o.s===it.s&&o.a===it.a));}
+let mutOpenAll=false, sugN=10, surOpen=false;
+function groupHTML(g,acts){
+  return `<div class="card mt-g">${g.items.map(it=>`<div class="mt-it"><button class="linkbtn sm" data-goloc="${it.s}:${it.a}:${it.w??""}:${it.we??""}">${esc(SURAHS[it.s-1][0])} ${it.a}</button><div class="mq">${diffHTML(it,g.items.filter(o=>o!==it))}</div></div>`).join("")}${g.note?`<div class="note">📝 ${esc(g.note)}</div>`:""}${acts||""}</div>`;
+}
+function renderMutTab(){
+  const el=document.getElementById("v-list");
+  if(!Q){el.innerHTML=`<h2 class="page-t">المتشابهات</h2><div class="card empty"><p class="meta">جارٍ التحميل…</p></div>`;loadQ().then(()=>{if(view==="list")renderList();}).catch(()=>{});return;}
+  const dg=dueGroups().length; const gs=state.mutash.slice().sort((x,y)=>groupMist(y)-groupMist(x)||(x.due||"").localeCompare(y.due||""));
+  const sug=allSugg().filter(sig=>!sugDone(sig));
+  const shownG=mutOpenAll?gs:gs.slice(0,15);
+  el.innerHTML=`<h2 class="page-t">المتشابهات</h2>
+    <div class="card" style="margin-bottom:12px">${state.mutash.length?`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span><b>مراجعة المتشابهات</b><span class="meta" style="display:block">${dg?(dg===1?"مجموعة واحدة مستحقة":dg+" مجموعات مستحقة"):"لا شيء مستحق اليوم"}</span></span><button class="btn sm" data-mqstart="${dg?"due":"all"}">${dg?"ابدأ":"راجع الكل"}</button></div>`:`<p class="help" style="margin:0">اربط الآيات المتشابهة لتراجعها معًا: من الاقتراحات أدناه، أو في المصحف بضغطة مطوّلة على كلمة.</p>`}</div>
+    ${gs.length?`<div class="section-t">متشابهاتي (${gs.length}) <span>الكلمات المختلفة ملوّنة · الأكثر خطأً أولًا</span></div>${shownG.map(g=>{const mc=groupMist(g);return groupHTML(g,mc?`<div class="meta" style="margin-top:6px;color:var(--red)">⚠️ ${errTxt(mc)} خطأ في هذه المواضع</div>`:"");}).join("")}${!mutOpenAll&&gs.length>15?`<button class="linkbtn" data-mtall="1" style="padding:6px 0">عرض الكل (${gs.length})</button>`:""}`:""}
+    <div class="section-t" style="margin-top:20px">اقتراحات (${sug.length}) <span>آيات تشترك في 6 كلمات أو أكثر · اختر ما تريد</span></div>
+    ${sug.length?sug.slice(0,sugN).map(sig=>{const its=sigItems(sig);return groupHTML({items:its,note:""},`<div class="bar-acts" style="margin-top:8px"><button class="btn sm" data-sgadd="${sig}">سجّل</button><button class="btn ghost sm" data-sgno="${sig}">لا</button></div>`);}).join("")+(sug.length>sugN?`<button class="linkbtn" data-sgmore="1" style="padding:6px 0">المزيد</button>`:""):`<p class="meta">لا اقتراحات أخرى.</p>`}
+    <p class="help">الاقتراحات محسوبة آليًا من تطابق الكلمات، فقد تفوتها متشابهات تختلف في كلمة، وقد تقترح ما لا يُعدّ متشابهًا؛ فأنت تختار.</p>`;
+}
+document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-sgadd],[data-sgno],[data-sgmore],[data-mtall],[data-sugl],#sugMore");if(!t)return;const d=t.dataset;
+  if(d.sgadd){const its=sigItems(d.sgadd);for(let i=1;i<its.length;i++)linkLocs(its[0],its[i]);save();renderList();toast("سُجّلت "+(its.length===2?"آيتان":its.length+" آيات")+" كمتشابهات");}
+  else if(d.sgno){state.mdis.push(d.sgno);save();renderList();}
+  else if(d.sgmore){sugN+=10;renderList();}
+  else if(d.mtall){mutOpenAll=true;renderList();}
+  else if(d.sugl&&mSel){const [s,a]=d.sugl.split(":").map(Number);linkLocs({s:mSel.s,a:mSel.a,w:null},{s,a,w:null});toast("رُبطت مع "+SURAHS[s-1][0]+" "+a);renderMushaf();}
+  else if(t.id==="sugMore"){sugAll=true;renderMushaf();}
+});
+// surahs (review schedule) and tests, shown in the stats tab in huffaz mode
+function surahsCardHTML(){
+  return `<div class="card" style="margin-bottom:10px"><div style="font-weight:600">اختبر نفسك</div><div class="chips" style="margin:8px 0 0"><button class="chip" data-tstart="complete">أكمل الآية</button><button class="chip" data-tstart="where">أين هذه الآية؟</button><button class="chip" data-tstart="link">ربط الآيات</button></div></div>
+  <details class="card" style="margin-bottom:10px" id="surDet" ${surOpen?"open":""}><summary style="font-weight:600;cursor:pointer">السور وجدول مراجعتها</summary>
+    <p class="help">اضغط على سورة لتقسيمها إلى أجزاء للمراجعة، أو لدمج أجزائها.</p>
+    <div class="list">${SURAHS.map((x,i)=>i+1).map(n=>{const sg=segs(n);return `<div class="s" data-edit="${n}"><div class="num">${n}</div><div class="grow"><div class="name">${SURAHS[n-1][0]}</div>${sg.length>1?`<div class="meta">مقسّمة إلى ${partsTxt(sg.length)}</div>`:""}</div><span class="meta">${surDue(n)}</span></div>${openEdit===n?editorHTML(n):""}`;}).join("")}</div></details>`;
+}
 
 // ---- Memorization plan ----
 function planOrder(){const a=[];for(let i=1;i<=114;i++)a.push(i);return state.plan.order==="fwd"?a:a.reverse();}
@@ -1110,7 +1206,7 @@ function bindSearch(){
 function groupDue(g){return (g.due||"")<=today();}
 function dueGroups(){return state.mutash.filter(groupDue);}
 let mq=null; // {ids, i, k, shown}
-function startMQ(all){const gs=all?state.mutash:dueGroups();if(!gs.length){toast("لا متشابهات مستحقة للمراجعة الآن");return;}
+function startMQ(all){let gs=all?state.mutash:dueGroups(); if(HUF()) gs=gs.slice().sort((x,y)=>groupMist(y)-groupMist(x));if(!gs.length){toast("لا متشابهات مستحقة للمراجعة الآن");return;}
   loadQ().then(()=>{mq={ids:gs.map(g=>g.id),i:0,k:0,shown:false};setView("mquiz");}).catch(()=>toast("تعذّر تحميل المصحف"));}
 function mqPrompt(it){const ws=locWords(it);const r=locRange(it);
   if(!r||r[0]===0){return {ctx:"",ask:r?"كيف تبدأ هذه الآية؟":"اقرأ هذه الآية"};}
@@ -1119,7 +1215,7 @@ function renderMQ(){
   const el=document.getElementById("v-mquiz");
   if(!mq||!Q){el.innerHTML=`<button class="linkbtn" data-go="today">→ اليوم</button><div class="card empty"><p class="meta">لا يوجد اختبار جارٍ.</p></div>`;return;}
   const g=state.mutash.find(x=>x.id===mq.ids[mq.i]);
-  if(!g){ el.innerHTML=`<button class="linkbtn" data-go="list">→ ${HUF()?"السور":"حفظي"}</button><h2 class="page-t">مراجعة المتشابهات</h2><div class="card empty"><div class="name">أتممت ✓</div><p class="meta">راجعت ${mq.ids.length===1?"مجموعة واحدة":mq.ids.length+" مجموعات"}.</p><div class="row-btns"><button class="btn" data-go="today">العودة إلى اليوم</button></div></div>`; return; }
+  if(!g){ el.innerHTML=`<button class="linkbtn" data-go="list">→ ${HUF()?"المتشابهات":"حفظي"}</button><h2 class="page-t">مراجعة المتشابهات</h2><div class="card empty"><div class="name">أتممت ✓</div><p class="meta">راجعت ${mq.ids.length===1?"مجموعة واحدة":mq.ids.length+" مجموعات"}.</p><div class="row-btns"><button class="btn" data-go="today">العودة إلى اليوم</button></div></div>`; return; }
   const it=g.items[mq.k]; const last=mq.k===g.items.length-1; const p=mqPrompt(it);
   el.innerHTML=`<button class="linkbtn" data-mqexit="1">→ إنهاء</button>
     <h2 class="page-t">مراجعة المتشابهات</h2>
@@ -1190,7 +1286,7 @@ function renderTests(){
       : (answered?`<div class="row-btns"><button class="btn ghost" data-tgrade="0" style="border-color:var(--red);color:var(--red)">أخطأت</button><button class="btn" data-tgrade="1" style="background:var(--green);color:#fff">أصبت</button></div>`
                  :`<div class="row-btns"><button class="btn" data-tshow="1">أظهر الجواب</button></div>`);
   }
-  el.innerHTML=`<button class="linkbtn" data-go="list">→ ${HUF()?"السور":"حفظي"}</button><h2 class="page-t">${HUF()?"اختبر نفسك":"اختبر حفظك"}</h2>
+  el.innerHTML=`<button class="linkbtn" data-go="${HUF()?"stats":"list"}">→ ${HUF()?"المتابعة":"حفظي"}</button><h2 class="page-t">${HUF()?"اختبر نفسك":"اختبر حفظك"}</h2>
     <div class="chips">${modes.map(([k,n])=>`<button class="chip ${tst.mode===k?"on":""}" data-tmode="${k}">${n}</button>`).join("")}</div>
     ${tst.n?`<p class="meta">النتيجة: ${tst.ok} من ${tst.n}</p>`:""}${body}
     <p class="help" style="text-align:center">${HUF()?"الأسئلة من آيات القرآن كلّه.":"الأسئلة من الآيات التي سجّلتها في «حفظي» فقط."}</p>`;
@@ -1263,6 +1359,7 @@ function mutashCard(){
 }
 let mshOpen=false;
 function renderList(){
+  if(HUF()){renderMutTab();return;}
   const el=document.getElementById("v-list");
   const q=listQuery.trim();
   const rows=SURAHS.map((s,i)=>i+1).filter(n=>{
@@ -1604,7 +1701,7 @@ function renderStats(){
   const days=[];for(let i=13;i>=0;i--){const d=addDays(today(),-i);days.push([d,state.log[d]||0]);}
   const mx=Math.max(1,...days.map(d=>d[1]));
   const wkH=[0,1,2,3,4,5,6].reduce((a,i)=>a+(state.rH[addDays(today(),-i)]||0),0);
-  el.innerHTML=`<button class="wk-entry" data-go="week"><span><b>الملخّص الأسبوعي</b><span class="meta" style="display:block">ما أنجزته في آخر 7 أيام وما تركّز عليه</span></span><span aria-hidden="true">‹</span></button>`+calendarCard()+habitsCard()+`<div class="stats">
+  el.innerHTML=`<button class="wk-entry" data-go="week"><span><b>الملخّص الأسبوعي</b><span class="meta" style="display:block">ما أنجزته في آخر 7 أيام وما تركّز عليه</span></span><span aria-hidden="true">‹</span></button>`+calendarCard()+(HUF()?surahsCardHTML():"")+habitsCard()+`<div class="stats">
       ${HUF()?`<div class="card stat"><div class="v">${fmtH(wkH)}</div><div class="k">حزبًا راجعتها في آخر 7 أيام</div></div>
       <div class="card stat"><div class="v">${Math.ceil(60/Math.max(0.5,state.goalH))}<span style="font-size:18px"> يومًا</span></div><div class="k">لمراجعة القرآن كاملًا بهدفك الحالي</div></div>`:`<div class="card stat"><div class="v">${full}<span style="font-size:18px"> / 114</span></div><div class="k">سورة محفوظة كاملة${part?" + "+part+" جزئيًا":""}</div></div>
       <div class="card stat"><div class="v">${fmtH(ahzab)}<span style="font-size:18px"> / 60</span></div><div class="k">حزبًا محفوظًا (تقريبًا)</div></div>`}
@@ -1620,11 +1717,12 @@ function renderStats(){
       ${(()=>{const top=Object.entries(state.mistakes).map(([k,v])=>{const [sn,a]=k.split(":").map(Number);return {sn,a,c:v.c};}).sort((x,y)=>y.c-x.c||x.sn-y.sn||x.a-y.a).slice(0,12);
         return top.length?`<div class="mist" style="color:var(--ink)">${top.map(m=>`<button class="chip" data-openaya="${m.sn}:${m.a}">${SURAHS[m.sn-1][0]} ${m.a} · ${errTxt(m.c)}</button>`).join("")}</div>`:`<p class="meta" style="margin:6px 0 0">لم تسجّل أي خطأ بعد. في المصحف، اضغط على الآية التي أخطأت فيها.</p>`;})()}</div>
     </div>`;
+  {const sd=document.getElementById("surDet");if(sd)sd.ontoggle=()=>{surOpen=sd.open;};}
   document.getElementById("hAdd").onclick=()=>{const v=document.getElementById("hNew").value.trim();if(!v)return;state.habits.push({id:"h"+Date.now().toString(36),n:v.slice(0,40)});save();renderStats();toast("أُضيفت العادة: "+v);};
   document.getElementById("hNew").onkeydown=e=>{if(e.key==="Enter")document.getElementById("hAdd").click();};
 }
 
-function freshState(keep){return Object.assign({v:2,items:{},log:{},mistakes:{},goalH:3,goalSet:false,hlog:{},plan:{on:false,amount:1,unit:"page",order:"back",days:[0,1,2,3,4,5,6]},rH:{},habits:[],hdone:{},adhLog:{},adh:{date:today(),p:{}},kh:null,khDone:[],recent:{on:true,days:30},mutash:[],tsb:normTsb(null),mode:"",stash:{},updatedAt:0},keep||{});}
+function freshState(keep){return Object.assign({v:2,items:{},log:{},mistakes:{},goalH:3,goalSet:false,hlog:{},plan:{on:false,amount:1,unit:"page",order:"back",days:[0,1,2,3,4,5,6]},rH:{},habits:[],hdone:{},adhLog:{},adh:{date:today(),p:{}},kh:null,khDone:[],recent:{on:true,days:30},mutash:[],tsb:normTsb(null),mode:"",stash:{},mdis:[],updatedAt:0},keep||{});}
 let pendingRestore=null;
 async function doBackup(){
   const data=JSON.stringify(Object.assign({app:"quran-review-qalun"},state),null,1);
@@ -1765,7 +1863,7 @@ function lpSelect(sn,a,w){
     else if(w===selAnchor) n={s:sn,a,w};
     else {const lo=Math.min(selAnchor,w),hi=Math.max(selAnchor,w); n={s:sn,a,w:lo,we:hi};}
   } else {selAnchor=w; n={s:sn,a,w};}
-  mSel=n; if(!n) selAnchor=null; noteEdit=false; renderMushaf();
+  mSel=n; if(!n) selAnchor=null; noteEdit=false; sugAll=false; renderMushaf();
 }
 let lpT=null,lpX=0,lpY=0,suppressClick=false;
 document.addEventListener("pointerdown",e=>{
@@ -1838,6 +1936,7 @@ function renderMushaf(){
           <div class="srch-list" style="max-height:none">${shown.map((x,i)=>`<div class="srch-it"><input type="checkbox" data-opick="${i}" ${O.picked.has(i)?"checked":""} aria-label="اختيار"><button class="srch-go" data-goloc="${x.s}:${x.a}:${x.w??""}:${x.we??""}"><span class="ml">${esc(SURAHS[x.s-1][0])} ${x.a}${groupOf(x.w===null?{s:x.s,a:x.a,w:null}:x)?" · ≈ مربوطة":""}</span><span class="mq">${occSnippet(x)}</span></button></div>`).join("")}</div>
           ${!O.all&&O.res.length>30?`<button class="linkbtn sm" id="occMore" style="padding:6px 0">عرض الباقي (${O.res.length-30})</button>`:""}
           ${O.picked.size?`<div class="bar-acts"><button class="btn sm" id="occLink" style="background:var(--gold-leaf);color:#0d1230">≈ اربط ${O.picked.size===1?"الموضع المحدّد":O.picked.size+" مواضع"} بهذه ${L.w===null?"الآية":"العبارة"}</button></div>`:`<p class="help" style="margin:6px 0 0">حدّد ما تريد ربطه كمتشابهات.</p>`}</div>`;})()}
+      ${HUF()?sugPanelHTML(L):""}
       ${L.w!==null&&!phrase?`<div class="help" style="margin:4px 0 0">لتحديد عبارة: اضغط على آخر كلمة منها في الآية نفسها.</div>`:""}
       ${g?`<div class="msh-box"><span class="meta" style="color:var(--ink)">متشابهة مع:</span>${g.items.filter(it=>!sameLoc(it,L)).map(it=>`<button class="chip msh-chip" data-goloc="${it.s}:${it.a}:${it.w??""}:${it.we??""}">${esc(locLabel(it))}</button>`).join("")}
           ${noteEdit?`<textarea id="gNote" rows="2" placeholder="كيف تفرّق بينها؟">${esc(g.note)}</textarea><div class="bar-acts"><button class="btn sm" id="gNoteSave">حفظ الملاحظة</button><button class="linkbtn sm" id="gNoteCancel">إلغاء</button></div>`
@@ -1857,7 +1956,7 @@ function renderMushaf(){
     document.getElementById("selClose").onclick=()=>{mSel=null;noteEdit=false;renderMushaf();};
     const sc=document.getElementById("selScope"); if(sc) sc.onclick=()=>{mSel={s:S.s,a:S.a,w:null};selAnchor=null;renderMushaf();};
     const gc=document.getElementById("gNoteCancel"); if(gc) gc.onclick=()=>{noteEdit=false;renderMushaf();};
-    document.getElementById("selAdd").onclick=()=>{addMistakeLoc(S);toast(S.w===null?"سُجّل الخطأ في الآية "+S.a:(S.we!==undefined&&S.we!==null?"سُجّل الخطأ في العبارة":"سُجّل الخطأ في الكلمة"));renderMushaf();};
+    document.getElementById("selAdd").onclick=()=>{addMistakeLoc(S);if(HUF()&&!groupOf({s:S.s,a:S.a,w:null})){const k=simAyat(S.s,S.a).length;if(k){toast("سُجّل الخطأ · هذه الآية تشبه "+(k===1?"آية أخرى":k+" آيات")+"، اختر ما تربطه بها أدناه");renderMushaf();const sg=document.querySelector(".aya-bar .sug");if(sg)sg.scrollIntoView({block:"nearest"});return;}}toast(S.w===null?"سُجّل الخطأ في الآية "+S.a:(S.we!==undefined&&S.we!==null?"سُجّل الخطأ في العبارة":"سُجّل الخطأ في الكلمة"));renderMushaf();};
     const dd=document.getElementById("selDec"); if(dd) dd.onclick=()=>{decMistakeLoc(S);renderMushaf();};
     const cl=document.getElementById("selClr"); if(cl) cl.onclick=()=>{clearMistakeLoc(S);toast("أُزيلت العلامة");renderMushaf();};
     document.getElementById("mshAdd").onclick=()=>{linkFrom=cleanLoc(S);linkTo=null;mSel=null;selAnchor=null;noteEdit=false;if(mMode){mMode=0;clearRev();}renderMushaf();};
@@ -1995,7 +2094,7 @@ document.addEventListener("click",e=>{
   if(d.adcat){adhCat=d.adcat;renderAdhkar();window.scrollTo(0,0);return;}
   if(d.adtap!==undefined){adhTap(Number(d.adtap));return;}
   if(d.hopen!==undefined&&hParts){const p=hParts[Number(d.hopen)];if(p)openMushaf(p.s,p.from,p.to);return;}
-  if(d.splitopen){openSplit=openSplit===d.splitopen?null:d.splitopen;renderList();return;}
+  if(d.splitopen){openSplit=openSplit===d.splitopen?null:d.splitopen;relist();return;}
   if(d.splitat){splitAt(d.splitat,document.getElementById("splitA").value);return;}
   if(d.splith){splitBySize(d.splith,document.getElementById("splitH").value);return;}
   if(d.merge){mergeSurah(Number(d.merge));return;}
@@ -2014,7 +2113,7 @@ document.addEventListener("click",e=>{
   if(d.openaya){const [sn,a]=d.openaya.split(":").map(Number);loadQ().then(()=>{mPage=Q.p[sn-1][a-1];mHi=null;mSel={s:sn,a,w:null};clearRev();mScroll=true;setView("mushaf");}).catch(()=>toast("تعذّر تحميل المصحف"));return;}
   if(d.open){const it=state.items[d.open];if(it)openMushaf(it.s,it.from,it.to);return;}
   if(d.rate){rate(d.id,d.rate);}
-  else if(d.edit){const n=Number(d.edit);openEdit=openEdit===n?null:n;renderList();}
+  else if(d.edit){const n=Number(d.edit);openEdit=openEdit===n?null:n;relist();}
   else if(d.addseg){const n=Number(d.addseg);const nw=document.getElementById("new-"+n);addSeg(n,document.getElementById("from-"+n).value,document.getElementById("to-"+n).value,nw&&nw.checked);}
   else if(d.delseg){removeSeg(d.delseg);}
   else if(d.full){const n=Number(d.full);addSegQuiet(n);save();render();toast("سورة "+SURAHS[n-1][0]+": محفوظة كاملة");}
