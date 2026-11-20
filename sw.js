@@ -1,6 +1,6 @@
 // Offline support: keep the app, the mushaf text and the fonts on the device.
 // Bump VERSION whenever index.html or the data files change, so phones pick up the new version.
-const VERSION = "v20-2026-11-20";
+const VERSION = "v21-2026-11-20";
 const CORE = ["./", "index.html", "qaloon.json", "themes.json", "mut.json", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png",
   "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
 

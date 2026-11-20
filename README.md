@@ -57,3 +57,6 @@ python3 tools/build_tafsir.py PATH/TO/tafsir_api/tafsir tf
 ```
 python3 tools/build_mut.py PATH/TO/mutashabiha_data.json mut.json
 ```
+
+## ورد التفسير (في صفحة الختمة)
+كل يوم موضوع واحد بترتيب المصحف، بتقسيم `themes.json` نفسه (الآيات القليلة غير المقسّمة تُضمّ كموضوع «تتمة»)، مع الجلالين ومعاني المفردات والإعراب من `tf/`. التقدّم محفوظ في `state.tw`.
