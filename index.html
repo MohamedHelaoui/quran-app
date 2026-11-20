@@ -253,7 +253,7 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .thsec[data-th="6"],.th-chip[data-th="6"]{--thc:hsl(180 55% 42%)}
 .thsec[data-th="7"],.th-chip[data-th="7"]{--thc:hsl(55 75% 48%)}
 .th-leg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
-.th-chip{font-size:12.5px;line-height:1.5;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--thc) 15%,transparent);border:1px solid color-mix(in srgb,var(--thc) 40%,transparent);color:var(--ink)}
+.th-chip{font-size:12.5px;line-height:1.5;padding:3px 10px;border-radius:12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;background:color-mix(in srgb,var(--thc) 15%,transparent);border:1px solid color-mix(in srgb,var(--thc) 40%,transparent);color:var(--ink)}
 .th-chip i{font-style:normal;opacity:.7;margin-inline-start:4px}
 .aya.hi{background:var(--gold-soft);box-shadow:0 0 0 3px var(--gold-soft)}
 .aya.err{text-decoration:underline wavy var(--red);text-decoration-thickness:1.5px;text-underline-offset:10px;background:var(--red-soft)}
@@ -2098,7 +2098,7 @@ function renderMushaf(){
   let thLeg="";
   if(thOnNow){const seen=new Set(),multi=new Set(list.map(x=>x[0])).size>1;
     for(const [sn,a] of list){const k=THM.at.get(sn+":"+a);if(k===undefined||seen.has(k))continue;seen.add(k);const c=THM.secs[k];
-      thLeg+=`<span class="th-chip" data-th="${k%8}">${multi?esc(SURAHS[c.s-1][0])+" · ":""}${c.t?esc(c.t):"آيات"}<i>${c.from===c.to?c.from:c.from+"–"+c.to}</i></span>`;}
+      thLeg+=`<span class="th-chip" data-th="${k%8}">${multi?esc(SURAHS[c.s-1][0])+" · ":""}${c.t?`<span dir="auto">${esc(c.t)}</span>`:"آيات"}<i dir="ltr">${c.from===c.to?c.from:c.from+"–"+c.to}</i></span>`;}
     if(thLeg)thLeg=`<div class="th-leg" aria-label="موضوعات الصفحة">${thLeg}</div>`;}
   body=(`<div class="m-text">`+body+`</div>`).replace(/<div class="m-text"><\/div>/g,"");
   const opts=SURAHS.map((x,i)=>`<option value="${i+1}" ${first&&first[0]===i+1?"selected":""}>${i+1}. ${x[0]}</option>`).join("");

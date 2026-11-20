@@ -29,9 +29,9 @@ def read_json(path):
     for x in json.load(open(path, encoding="utf-8")):
         yield int(x["surah"]), int(x["from"]), int(x["to"]), (x.get("title") or "").strip()
 
-def convert(rows):
+def convert(rows, fill=2):
     per = {}
-    for s, f, t, title in rows:
+    for s, f, t, title in sorted(set(rows)):      # QUL exports every passage twice: drop duplicates
         m = H2Q.get(s)
         if not m or f < 1 or t < f: continue
         f, t = min(f, len(m)), min(t, len(m))
@@ -45,6 +45,8 @@ def convert(rows):
                 if t <= res[-1][1]: continue        # fully inside the previous one
                 f = res[-1][1] + 1                  # start after the previous section
             if f > t or t > QALUN_COUNT[s]: continue
+            if res and 0 < f - res[-1][1] - 1 <= fill:  # tiny hole: let the previous section cover it
+                res[-1][1] = f - 1
             res.append([f, t, title])
         if res: out[str(s)] = res
     return out
