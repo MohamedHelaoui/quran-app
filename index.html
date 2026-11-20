@@ -243,6 +243,18 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .mushaf{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:20px 20px 10px;box-shadow:inset 0 0 0 5px var(--card),inset 0 0 0 6px var(--gold-leaf),inset 0 0 0 9px var(--card),inset 0 0 0 10px color-mix(in srgb,var(--gold-leaf) 45%,transparent)}
 .m-text{font-family:"Qaloon",serif;font-size:clamp(23px,5.6vw,30px);line-height:2.15;text-align:justify;text-align-last:center;color:var(--ink)}
 .aya{border-radius:6px;transition:background .2s,color .2s;cursor:default}
+.thsec{border-radius:8px;padding:0 3px;-webkit-box-decoration-break:clone;box-decoration-break:clone;background:color-mix(in srgb,var(--thc) 13%,transparent)}
+.thsec[data-th="0"],.th-chip[data-th="0"]{--thc:hsl(150 45% 45%)}
+.thsec[data-th="1"],.th-chip[data-th="1"]{--thc:hsl(35 85% 52%)}
+.thsec[data-th="2"],.th-chip[data-th="2"]{--thc:hsl(210 65% 55%)}
+.thsec[data-th="3"],.th-chip[data-th="3"]{--thc:hsl(330 55% 58%)}
+.thsec[data-th="4"],.th-chip[data-th="4"]{--thc:hsl(270 45% 62%)}
+.thsec[data-th="5"],.th-chip[data-th="5"]{--thc:hsl(12 70% 56%)}
+.thsec[data-th="6"],.th-chip[data-th="6"]{--thc:hsl(180 55% 42%)}
+.thsec[data-th="7"],.th-chip[data-th="7"]{--thc:hsl(55 75% 48%)}
+.th-leg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.th-chip{font-size:12.5px;line-height:1.5;padding:3px 10px;border-radius:999px;background:color-mix(in srgb,var(--thc) 15%,transparent);border:1px solid color-mix(in srgb,var(--thc) 40%,transparent);color:var(--ink)}
+.th-chip i{font-style:normal;opacity:.7;margin-inline-start:4px}
 .aya.hi{background:var(--gold-soft);box-shadow:0 0 0 3px var(--gold-soft)}
 .aya.err{text-decoration:underline wavy var(--red);text-decoration-thickness:1.5px;text-underline-offset:10px;background:var(--red-soft)}
 .aya.err2{background:color-mix(in srgb,var(--red-soft) 60%,var(--red) 22%)}
@@ -1982,12 +1994,23 @@ function saveNoteFrom(id){
 
 // ---- Mushaf (Qalun, KFGQPC text) ----
 let mSel=null;
+let THM=null, thOn=(()=>{try{return localStorage.getItem("quran-th-on")!=="0";}catch(e){return true;}})(), thLoading=null;
+function loadThemes(){
+  if(THM||thLoading) return thLoading;
+  thLoading=fetch("themes.json").then(r=>{if(!r.ok)throw new Error("none");return r.json();}).then(d=>{
+    const secs=[],at=new Map();
+    for(let sn=1;sn<=114;sn++){(d.r&&d.r[sn]||[]).forEach(([f,t,title])=>{const k=secs.length;secs.push({s:sn,from:f,to:t,t:title||"",k});for(let a=f;a<=t;a++)at.set(sn+":"+a,k);});}
+    if(secs.length){THM={secs,at};if(view==="mushaf")renderMushaf();}
+  }).catch(()=>{});
+  return thLoading;
+}
 let Q=null, qLoading=null, PAGE_IDX=null, mPage=1, mHi=null, mMode=0, revealed=new Map(), revSeg=new Map(), mScroll=false, mUnit="aya", linkFrom=null, linkTo=null, selAnchor=null, noteEdit=false;
 function loadQ(){
   if(Q) return Promise.resolve(Q);
   if(!qLoading) qLoading=fetch("qaloon.json").then(r=>{if(!r.ok)throw new Error("http");return r.json();}).then(d=>{
     Q=d; PAGE_IDX=Array.from({length:605},()=>[]);
     d.p.forEach((arr,si)=>arr.forEach((pg,ai)=>PAGE_IDX[pg].push([si+1,ai+1])));
+    loadThemes();
     return d;
   }).catch(e=>{qLoading=null;throw e;});
   return qLoading;
@@ -2059,20 +2082,31 @@ function renderMushaf(){
     return;
   }
   const list=PAGE_IDX[mPage]; const first=list[0];
-  let body="";
+  let body="", curTh=-1;
+  const thClose=()=>{if(curTh>=0){body+=`</span>`;curTh=-1;}};
+  const thOnNow=!!(THM&&thOn);
   for(const [sn,a] of list){
-    if(a===1){ body+=`</div><div class="s-head">سورة ${SURAHS[sn-1][0]}</div>${sn!==9?`<div class="basmala">${Q.b}</div>`:""}<div class="m-text">`; }
+    if(a===1){ thClose(); body+=`</div><div class="s-head">سورة ${SURAHS[sn-1][0]}</div>${sn!==9?`<div class="basmala">${Q.b}</div>`:""}<div class="m-text">`; }
+    const tk=thOnNow?(THM.at.has(sn+":"+a)?THM.at.get(sn+":"+a):-1):-1;
+    if(tk!==curTh){thClose();if(tk>=0){body+=`<span class="thsec" data-th="${tk%8}">`;curTh=tk;}}
     const inHi=mHi&&mHi.s===sn&&a>=mHi.from&&a<=mHi.to;
     const A=ayaHTML(sn,a); const wa=(state.mistakes[sn+":"+a]||{}).wa||0; const msA=mshOnAya(sn,a).aya;
     const isSel=(mSel&&mSel.s===sn&&mSel.a===a&&mSel.w===null)||(linkTo&&linkTo.s===sn&&linkTo.a===a&&linkTo.w===null); const isLink=linkFrom&&linkFrom.s===sn&&linkFrom.a===a&&linkFrom.w===null;
     body+=`<span class="aya${inHi?" hi":""}${A.hiding?" hiding":""}${!A.hiding&&wa?" err":""}${!A.hiding&&wa>=3?" err2":""}${!A.hiding&&msA?" amsh":""}${isSel?" sel":""}${isLink?" alink":""}" data-aya="${sn}:${a}">${A.html}</span> `;
   }
+  thClose();
+  let thLeg="";
+  if(thOnNow){const seen=new Set(),multi=new Set(list.map(x=>x[0])).size>1;
+    for(const [sn,a] of list){const k=THM.at.get(sn+":"+a);if(k===undefined||seen.has(k))continue;seen.add(k);const c=THM.secs[k];
+      thLeg+=`<span class="th-chip" data-th="${k%8}">${multi?esc(SURAHS[c.s-1][0])+" · ":""}${c.t?esc(c.t):"آيات"}<i>${c.from===c.to?c.from:c.from+"–"+c.to}</i></span>`;}
+    if(thLeg)thLeg=`<div class="th-leg" aria-label="موضوعات الصفحة">${thLeg}</div>`;}
   body=(`<div class="m-text">`+body+`</div>`).replace(/<div class="m-text"><\/div>/g,"");
   const opts=SURAHS.map((x,i)=>`<option value="${i+1}" ${first&&first[0]===i+1?"selected":""}>${i+1}. ${x[0]}</option>`).join("");
   el.innerHTML=`<div class="m-bar">
       <select id="mSura" aria-label="السورة">${opts}</select>
       <label class="meta">صفحة <input type="number" id="mPg" min="1" max="604" value="${mPage}"></label>
       <button class="icon-nav ${mSearch.open?"on":""}" id="mSrchBtn" aria-label="بحث" title="بحث في المصحف" style="font-size:16px">🔍</button>
+      ${THM?`<button class="icon-nav ${thOn?"on":""}" id="mThBtn" aria-label="ألوان الموضوعات" title="ألوان الموضوعات" style="font-size:16px">🎨</button>`:""}
       <div class="seg-ctl" role="group" aria-label="طريقة العرض">${["عرض","أول كلمة","إخفاء"].map((x,i)=>`<button data-mmode="${i}" class="${mMode===i?"on":""}">${x}</button>`).join("")}</div>
 
     </div>
@@ -2081,6 +2115,7 @@ function renderMushaf(){
     ${linkFrom?`<div class="link-banner"><div style="min-width:0"><b>اختر الموضع المشابه</b><div class="meta" style="color:inherit;opacity:.85">${linkTo?"المختار: "+esc(locLabel(linkTo))+(linkTo.w!==null?" · اضغط كلمة أخرى في الآية لتوسيع العبارة":""):"من "+esc(locLabel(linkFrom))+" · اذهب إلى أي صفحة واضغط على الكلمة، أو على رقم الآية"}</div></div>
       <div style="display:flex;gap:6px;flex:none">${linkTo?`<button class="btn" id="linkOk" style="background:var(--gold-leaf);color:#0d1230">ربط</button>`:""}<button class="btn ghost" id="linkCancel">إلغاء</button></div></div>`:""}
     ${searchPanelHTML()}
+    ${thLeg}
     <div class="mushaf${segMode()?" seg-mode":""}">${body}
       <div class="m-foot"><button class="btn ghost" id="mPrev" ${mPage<=1?"disabled":""}>→ السابقة</button><span>${mPage}</span><button class="btn ghost" id="mNext" ${mPage>=604?"disabled":""}>التالية ←</button></div>
     </div>
@@ -2104,6 +2139,7 @@ function renderMushaf(){
   document.getElementById("mPg").onchange=e=>goPage(e.target.value);
   document.getElementById("mSrchBtn").onclick=()=>{mSearch.open=!mSearch.open;renderMushaf();const i=document.getElementById("sQ");if(i)i.focus();};
   bindSearch();
+  const thb=document.getElementById("mThBtn"); if(thb) thb.onclick=()=>{thOn=!thOn;try{localStorage.setItem("quran-th-on",thOn?"1":"0");}catch(e){}renderMushaf();};
   document.getElementById("mPrev").onclick=()=>{goPage(mPage-1);window.scrollTo(0,0);};
   document.getElementById("mNext").onclick=()=>{goPage(mPage+1);window.scrollTo(0,0);};
   const ch=document.getElementById("mClearHi"); if(ch) ch.onclick=()=>{mHi=null;renderMushaf();};

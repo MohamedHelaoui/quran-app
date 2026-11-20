@@ -34,3 +34,12 @@
 - نص المصحف وخطه (رواية قالون، الإصدار 10): مجمع الملك فهد لطباعة المصحف الشريف، من مستودع [thetruetruth/quran-data-kfgqpc](https://github.com/thetruetruth/quran-data-kfgqpc).
 - الأذكار: «حصن المسلم»، من مستودع [nawafalqari/azkar-api](https://github.com/nawafalqari/azkar-api)، والآيات فيها من نص قالون أعلاه.
 - مواقيت الصلاة المضمّنة: مسجد السلام (ملف Mawaqit)، ويمكن إضافة ملفات ‎.ics أخرى من الإعدادات.
+
+## الأقسام الموضوعية (ألوان المصحف)
+يلوّن المصحف خلفية كل موضوع بلون هادئ مختلف، مع شريط صغير في أعلى الصفحة يذكر مواضيع الصفحة (زر 🎨 للتشغيل والإيقاف). البيانات في ملف `themes.json` (بترقيم قالون). لتوليده من جدول مقاطع بترقيم حفص (مثل QUL «Ayah theme»):
+
+```
+python3 tools/build_themes.py ayah_theme.sqlite themes.json
+```
+
+بدون `themes.json` لا يظهر شيء. عند تغييره ارفع `VERSION` في `sw.js`.
