@@ -471,7 +471,7 @@ function idOf(s,from,to){return s+"_"+from+"_"+to;}
 function normalize(src){
   if(!src||typeof src!=="object") src={};
   // default daily goal is 3 ahzab; a goal the user chose (goalSet) is kept
-  const out={v:2,updatedAt:Number(src.updatedAt)||0,items:{},log:{},goalH:(src.goalSet&&Number(src.goalH)>0)?Number(src.goalH):3,goalSet:!!src.goalSet,hlog:(src.hlog&&typeof src.hlog==="object")?JSON.parse(JSON.stringify(src.hlog)):{},plan:normPlan(src.plan),adh:(src.adh&&src.adh.date===today()&&typeof src.adh.p==="object")?JSON.parse(JSON.stringify(src.adh)):{date:today(),p:{}},rH:cp(src.rH),tsb:normTsb(src.tsb),mlog:cp(src.mlog),qada:normQada(src.qada),prayer:(src.prayer&&src.prayer.days&&typeof src.prayer.days==="object")?{name:String(src.prayer.name||"").slice(0,80),tz:String(src.prayer.tz||"Europe/Berlin"),days:cp(src.prayer.days)}:null,recent:{on:!(src.recent&&src.recent.on===false),days:[7,14,30,40,60].includes(Number(src.recent&&src.recent.days))?Number(src.recent.days):30},kh:normKh(src.kh),khDone:Array.isArray(src.khDone)?src.khDone.filter(x=>typeof x==="string").slice(-200):[],habits:Array.isArray(src.habits)?src.habits.filter(h=>h&&h.id&&h.n).map(h=>({id:String(h.id),n:String(h.n).slice(0,40)})):[],hdone:cp(src.hdone),adhLog:(src.adhLog&&typeof src.adhLog==="object")?JSON.parse(JSON.stringify(src.adhLog)):{},mode:(src.mode==="hifdh"||src.mode==="huffaz")?src.mode:"",stash:(src.stash&&typeof src.stash==="object"&&!Array.isArray(src.stash))?JSON.parse(JSON.stringify(src.stash)):{},mdis:Array.isArray(src.mdis)?src.mdis.filter(x=>typeof x==="string").slice(-3000):[],rv:normRv(src.rv)};
+  const out={v:2,updatedAt:Number(src.updatedAt)||0,items:{},log:{},goalH:(src.goalSet&&Number(src.goalH)>0)?Number(src.goalH):3,goalSet:!!src.goalSet,hlog:(src.hlog&&typeof src.hlog==="object")?JSON.parse(JSON.stringify(src.hlog)):{},plan:normPlan(src.plan),adh:(src.adh&&src.adh.date===today()&&typeof src.adh.p==="object")?JSON.parse(JSON.stringify(src.adh)):{date:today(),p:{}},rH:cp(src.rH),tsb:normTsb(src.tsb),mlog:cp(src.mlog),qada:normQada(src.qada),prayer:(src.prayer&&src.prayer.days&&typeof src.prayer.days==="object")?{name:String(src.prayer.name||"").slice(0,80),tz:String(src.prayer.tz||"Europe/Berlin"),days:cp(src.prayer.days)}:null,recent:{on:!(src.recent&&src.recent.on===false),days:[7,14,30,40,60].includes(Number(src.recent&&src.recent.days))?Number(src.recent.days):30},kh:normKh(src.kh),khDone:Array.isArray(src.khDone)?src.khDone.filter(x=>typeof x==="string").slice(-200):[],habits:Array.isArray(src.habits)?src.habits.filter(h=>h&&h.id&&h.n).map(h=>({id:String(h.id),n:String(h.n).slice(0,40)})):[],hdone:cp(src.hdone),adhLog:(src.adhLog&&typeof src.adhLog==="object")?JSON.parse(JSON.stringify(src.adhLog)):{},mode:(src.mode==="hifdh"||src.mode==="huffaz")?src.mode:"",stash:(src.stash&&typeof src.stash==="object"&&!Array.isArray(src.stash))?JSON.parse(JSON.stringify(src.stash)):{},mdis:Array.isArray(src.mdis)?src.mdis.filter(x=>typeof x==="string").slice(-3000):[],rv:normRv(src.rv),tg:(src.tg&&typeof src.tg==="object")?{hide:Array.isArray(src.tg.hide)?src.tg.hide.map(String).slice(0,100):[],show:Array.isArray(src.tg.show)?src.tg.show.map(String).slice(0,100):[]}:{hide:[],show:[]}};
   const fromHafs=src.v!==2;
   out.mistakes={};
   if(src.mistakes&&typeof src.mistakes==="object"){for(const [k,v] of Object.entries(src.mistakes)){const [sn,a]=k.split(":").map(Number);if(sn>=1&&sn<=114&&a>=1&&a<=SURAHS[sn-1][1]&&v&&v.c>0)out.mistakes[k]=normMist(v);}}
@@ -974,13 +974,35 @@ function hufTailHTML(){
   <details class="card" style="margin-bottom:10px" id="topDet" ${topOpen?"open":""}><summary style="font-weight:600;cursor:pointer">آيات أخطأت فيها أكثر</summary>
     ${top.length?(topOpen?mistListHTML(top,true):""):`<p class="meta">لم تسجّل أي خطأ بعد. في المصحف، اضغط على الآية التي أخطأت فيها.</p>`}</details>`;
 }
+// the day's goals in the stats tab: built-in ones (some on by default) and the person's own habits; each can be shown or hidden
+const TG_BUILTIN=[["rv","مراجعتي",1],["msh","مراجعة المتشابهات",1],["kh","ورد الختمة",1],["qada","قضاء الفوائت",1],["sabah","أذكار الصباح",1],["masa","أذكار المساء",1],["nawm","أذكار النوم",0],["tsb","المسبحة",0]];
+function tgOn(id){const b=TG_BUILTIN.find(x=>x[0]===id);const def=b?!!b[2]:true;return def?!state.tg.hide.includes(id):state.tg.show.includes(id);}
+function tgSet(id,on){const b=TG_BUILTIN.find(x=>x[0]===id);const def=b?!!b[2]:true;state.tg.hide=state.tg.hide.filter(x=>x!==id);state.tg.show=state.tg.show.filter(x=>x!==id);if(on!==def)(on?state.tg.show:state.tg.hide).push(id);save();}
+let tgEdit=false;
+function tgEditHTML(){
+  if(!tgEdit) return `<div style="text-align:left;margin:-4px 0 10px"><button class="linkbtn sm" id="tgOpen">✎ تعديل أهداف اليوم</button></div>`;
+  const all=TG_BUILTIN.map(x=>({id:x[0],n:x[1]})).concat(state.habits.map(h=>({id:h.id,n:h.n,own:true})));
+  return `<div class="card" style="margin:-4px 0 10px"><div style="display:flex;justify-content:space-between;align-items:center"><b>أهداف اليوم</b><button class="linkbtn sm" id="tgClose">تمّ</button></div>
+    ${all.map(g=>`<label class="setting" style="cursor:pointer"><span>${esc(g.n)}${g.own?' <span class="meta">(من عندك)</span>':""}</span><input type="checkbox" data-tgid="${esc(g.id)}" ${tgOn(g.id)?"checked":""} style="width:22px;height:22px;flex:none"></label>`).join("")}
+    <p class="help">بعض الأهداف لا تظهر إلا عند الحاجة: المتشابهات إن كان فيها شيء مستحق، والختمة إن بدأتها، والقضاء إن ضبطته.</p>
+    <div class="seg-form" style="margin-top:6px"><input type="text" id="tgNew" maxlength="40" placeholder="هدف جديد، مثلًا: قيام الليل" style="flex:1;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);color:var(--ink)"><button class="btn" id="tgAdd">إضافة</button></div></div>`;
+}
+document.addEventListener("click",e=>{const t=e.target;if(!t||!t.id)return;
+  if(t.id==="tgOpen"){tgEdit=true;renderStats();}
+  else if(t.id==="tgClose"){tgEdit=false;renderStats();}
+  else if(t.id==="tgAdd"){const i=document.getElementById("tgNew");const v=(i.value||"").trim();if(!v)return;const id="h"+Date.now().toString(36);state.habits.push({id,n:v.slice(0,40)});save();renderStats();toast("أُضيف الهدف: "+v);}
+});
+document.addEventListener("change",e=>{const t=e.target;if(t&&t.dataset&&t.dataset.tgid){tgSet(t.dataset.tgid,t.checked);renderStats();}});
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target&&e.target.id==="tgNew"){const b=document.getElementById("tgAdd");if(b)b.click();}});
 function todaySummaryHTML(){
   const t=today(); const tasks=[]; const L=state.rv;
-  if(L.length){const dn=L.filter(x=>x.d===t).length;tasks.push({n:"مراجعتي",ok:dn>0,v:dn+" / "+L.length,act:'data-go="today"'});}
-  {const dg=dueGroups().length; if(dg) tasks.push({n:"مراجعة المتشابهات",ok:false,v:dg===1?"مجموعة واحدة":dg+" مجموعات",act:'data-mqstart="due"'}); else if(state.mlog&&state.mlog[t]) tasks.push({n:"مراجعة المتشابهات",ok:true,v:"تمّت",act:'data-mqstart="all"'});}
-  const khS=khStatus(); if(khS&&!khS.finished) tasks.push({n:"ورد الختمة",ok:khS.k.pos>khS.todayEnd,v:khS.k.pos>khS.todayEnd?"تمّ":"ص "+khS.k.pos+"–"+khS.todayEnd,act:'data-go="khatma"'});
-  const qt=qadaToday(); if(qt&&qadaLeftTotal()+qt.dT>0&&qt.qT) tasks.push({n:"قضاء الفوائت",ok:qt.ok,v:qt.dT+" / "+qt.qT,act:'data-go="qada"'});
-  ["sabah","masa"].forEach(k=>{const c=ADHKAR.find(x=>x.k===k);const ok=(state.adhLog[t]||[]).includes(k);tasks.push({n:c.n,ok,v:ok?"تمّت":"",act:`data-goadh="${k}"`});});
+  if(tgOn("rv")&&L.length){const dn=L.filter(x=>x.d===t).length;tasks.push({n:"مراجعتي",ok:dn>0,v:dn+" / "+L.length,act:'data-go="today"'});}
+  if(tgOn("msh")){const dg=dueGroups().length; if(dg) tasks.push({n:"مراجعة المتشابهات",ok:false,v:dg===1?"مجموعة واحدة":dg+" مجموعات",act:'data-mqstart="due"'}); else if(state.mlog&&state.mlog[t]) tasks.push({n:"مراجعة المتشابهات",ok:true,v:"تمّت",act:'data-mqstart="all"'});}
+  const khS=khStatus(); if(tgOn("kh")&&khS&&!khS.finished) tasks.push({n:"ورد الختمة",ok:khS.k.pos>khS.todayEnd,v:khS.k.pos>khS.todayEnd?"تمّ":"ص "+khS.k.pos+"–"+khS.todayEnd,act:'data-go="khatma"'});
+  const qt=qadaToday(); if(tgOn("qada")&&qt&&qadaLeftTotal()+qt.dT>0&&qt.qT) tasks.push({n:"قضاء الفوائت",ok:qt.ok,v:qt.dT+" / "+qt.qT,act:'data-go="qada"'});
+  ["sabah","masa","nawm"].filter(tgOn).forEach(k=>{const c=ADHKAR.find(x=>x.k===k);if(!c)return;const ok=(state.adhLog[t]||[]).includes(k);tasks.push({n:c.n,ok,v:ok?"تمّت":"",act:`data-goadh="${k}"`});});
+  if(tgOn("tsb")){const st=tsbDayState(t);tasks.push({n:"المسبحة",ok:st===2,v:st===2?"تمّت":st===1?"بدأت":"",act:'data-goadh="tasbih"'});}
+  state.habits.filter(h=>tgOn(h.id)).forEach(h=>{const ok=(state.hdone[t]||[]).includes(h.id);tasks.push({n:h.n,ok,v:ok?"تمّ":"",act:`data-htog="${esc(h.id)}" data-hd="${t}"`});});
   const okN=tasks.filter(x=>x.ok).length; const pr=tasks.length?okN/tasks.length:1;
   const hijri=(()=>{try{return new Date().toLocaleDateString("ar-u-ca-islamic-umalqura-nu-latn",{weekday:"long",day:"numeric",month:"long"});}catch(e){return "";}})();
   return `<div class="card daybox-card"><p class="daytitle">${hijri}</p><div class="daybox">
@@ -1832,7 +1854,7 @@ function renderStats(){
   const days=[];for(let i=13;i>=0;i--){const d=addDays(today(),-i);days.push([d,state.log[d]||0]);}
   const mx=Math.max(1,...days.map(d=>d[1]));
   const wkH=[0,1,2,3,4,5,6].reduce((a,i)=>a+(state.rH[addDays(today(),-i)]||0),0);
-  el.innerHTML=(HUF()?todaySummaryHTML():"")+`<button class="wk-entry" data-go="week"><span><b>الملخّص الأسبوعي</b><span class="meta" style="display:block">ما أنجزته في آخر 7 أيام وما تركّز عليه</span></span><span aria-hidden="true">‹</span></button>`+calendarCard()+(HUF()?surahsCardHTML():"")+habitsCard()+(HUF()?hufTailHTML():`<div class="stats">
+  el.innerHTML=(HUF()?todaySummaryHTML()+tgEditHTML():"")+`<button class="wk-entry" data-go="week"><span><b>الملخّص الأسبوعي</b><span class="meta" style="display:block">ما أنجزته في آخر 7 أيام وما تركّز عليه</span></span><span aria-hidden="true">‹</span></button>`+calendarCard()+(HUF()?surahsCardHTML():"")+habitsCard()+(HUF()?hufTailHTML():`<div class="stats">
       ${HUF()?`<div class="card stat"><div class="v">${fmtH(wkH)}</div><div class="k">حزبًا راجعتها في آخر 7 أيام</div></div>
       <div class="card stat"><div class="v">${state.rv.length}</div><div class="k">في «مراجعتي»</div></div>`:`<div class="card stat"><div class="v">${full}<span style="font-size:18px"> / 114</span></div><div class="k">سورة محفوظة كاملة${part?" + "+part+" جزئيًا":""}</div></div>
       <div class="card stat"><div class="v">${fmtH(ahzab)}<span style="font-size:18px"> / 60</span></div><div class="k">حزبًا محفوظًا (تقريبًا)</div></div>`}
@@ -1855,7 +1877,7 @@ function renderStats(){
   document.getElementById("hNew").onkeydown=e=>{if(e.key==="Enter")document.getElementById("hAdd").click();};
 }
 
-function freshState(keep){return Object.assign({v:2,items:{},log:{},mistakes:{},goalH:3,goalSet:false,hlog:{},plan:{on:false,amount:1,unit:"page",order:"back",days:[0,1,2,3,4,5,6]},rH:{},habits:[],hdone:{},adhLog:{},adh:{date:today(),p:{}},kh:null,khDone:[],recent:{on:true,days:30},mutash:[],tsb:normTsb(null),mode:"",stash:{},mdis:[],rv:[],updatedAt:0},keep||{});}
+function freshState(keep){return Object.assign({v:2,items:{},log:{},mistakes:{},goalH:3,goalSet:false,hlog:{},plan:{on:false,amount:1,unit:"page",order:"back",days:[0,1,2,3,4,5,6]},rH:{},habits:[],hdone:{},adhLog:{},adh:{date:today(),p:{}},kh:null,khDone:[],recent:{on:true,days:30},mutash:[],tsb:normTsb(null),mode:"",stash:{},mdis:[],rv:[],tg:{hide:[],show:[]},updatedAt:0},keep||{});}
 let pendingRestore=null;
 async function doBackup(){
   const data=JSON.stringify(Object.assign({app:"quran-review-qalun"},state),null,1);
