@@ -370,6 +370,10 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .m-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:var(--muted);font-size:14px}
 .m-foot button{font-size:14px}
 .src{color:var(--muted);font-size:12px;margin-top:14px;text-align:center}
+.mode-opt{display:block;width:100%;text-align:right;font:inherit;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px;cursor:pointer;color:var(--ink)}
+.mode-opt b{display:block;font-size:18px;color:var(--indigo-2)}
+.mode-opt span{display:block;font-size:13px;color:var(--muted);margin-top:4px;line-height:1.7}
+.mode-opt:hover,.mode-opt:focus-visible{border-color:var(--gold-leaf);outline:0}
 </style>
 </head>
 <body>
@@ -435,13 +439,14 @@ function daysTxt(n){n=Number(n);if(n===1)return "يوم واحد";if(n===2)retur
 let state=freshState();
 let dbRef=null, saving=false, pendingSave=false, saveTimer=null, syncMode="local", queuedRemote=null;
 let LS_KEY="quran-review-v1";
+let modeReady=false; // true once the account/device state is loaded, so the mode picker never flashes before it
 
 function newItem(s,from,to,extra){return Object.assign({s,from,to,level:0,due:today(),reviews:0,note:""},extra||{});}
 function idOf(s,from,to){return s+"_"+from+"_"+to;}
 function normalize(src){
   if(!src||typeof src!=="object") src={};
   // default daily goal is 3 ahzab; a goal the user chose (goalSet) is kept
-  const out={v:2,updatedAt:Number(src.updatedAt)||0,items:{},log:{},goalH:(src.goalSet&&Number(src.goalH)>0)?Number(src.goalH):3,goalSet:!!src.goalSet,hlog:(src.hlog&&typeof src.hlog==="object")?JSON.parse(JSON.stringify(src.hlog)):{},plan:normPlan(src.plan),adh:(src.adh&&src.adh.date===today()&&typeof src.adh.p==="object")?JSON.parse(JSON.stringify(src.adh)):{date:today(),p:{}},rH:cp(src.rH),tsb:normTsb(src.tsb),mlog:cp(src.mlog),qada:normQada(src.qada),prayer:(src.prayer&&src.prayer.days&&typeof src.prayer.days==="object")?{name:String(src.prayer.name||"").slice(0,80),tz:String(src.prayer.tz||"Europe/Berlin"),days:cp(src.prayer.days)}:null,recent:{on:!(src.recent&&src.recent.on===false),days:[7,14,30,40,60].includes(Number(src.recent&&src.recent.days))?Number(src.recent.days):30},kh:normKh(src.kh),khDone:Array.isArray(src.khDone)?src.khDone.filter(x=>typeof x==="string").slice(-200):[],habits:Array.isArray(src.habits)?src.habits.filter(h=>h&&h.id&&h.n).map(h=>({id:String(h.id),n:String(h.n).slice(0,40)})):[],hdone:cp(src.hdone),adhLog:(src.adhLog&&typeof src.adhLog==="object")?JSON.parse(JSON.stringify(src.adhLog)):{}};
+  const out={v:2,updatedAt:Number(src.updatedAt)||0,items:{},log:{},goalH:(src.goalSet&&Number(src.goalH)>0)?Number(src.goalH):3,goalSet:!!src.goalSet,hlog:(src.hlog&&typeof src.hlog==="object")?JSON.parse(JSON.stringify(src.hlog)):{},plan:normPlan(src.plan),adh:(src.adh&&src.adh.date===today()&&typeof src.adh.p==="object")?JSON.parse(JSON.stringify(src.adh)):{date:today(),p:{}},rH:cp(src.rH),tsb:normTsb(src.tsb),mlog:cp(src.mlog),qada:normQada(src.qada),prayer:(src.prayer&&src.prayer.days&&typeof src.prayer.days==="object")?{name:String(src.prayer.name||"").slice(0,80),tz:String(src.prayer.tz||"Europe/Berlin"),days:cp(src.prayer.days)}:null,recent:{on:!(src.recent&&src.recent.on===false),days:[7,14,30,40,60].includes(Number(src.recent&&src.recent.days))?Number(src.recent.days):30},kh:normKh(src.kh),khDone:Array.isArray(src.khDone)?src.khDone.filter(x=>typeof x==="string").slice(-200):[],habits:Array.isArray(src.habits)?src.habits.filter(h=>h&&h.id&&h.n).map(h=>({id:String(h.id),n:String(h.n).slice(0,40)})):[],hdone:cp(src.hdone),adhLog:(src.adhLog&&typeof src.adhLog==="object")?JSON.parse(JSON.stringify(src.adhLog)):{},mode:(src.mode==="hifdh"||src.mode==="huffaz")?src.mode:"",stash:(src.stash&&typeof src.stash==="object"&&!Array.isArray(src.stash))?JSON.parse(JSON.stringify(src.stash)):{}};
   const fromHafs=src.v!==2;
   out.mistakes={};
   if(src.mistakes&&typeof src.mistakes==="object"){for(const [k,v] of Object.entries(src.mistakes)){const [sn,a]=k.split(":").map(Number);if(sn>=1&&sn<=114&&a>=1&&a<=SURAHS[sn-1][1]&&v&&v.c>0)out.mistakes[k]=normMist(v);}}
@@ -544,14 +549,14 @@ async function pullRemote(){
 }
 function startLocal(){
   sbUser=null; dbRef=null; LS_KEY="quran-review-v1";
-  const l=lsLoad(); state=l?normalize(l):freshState(); hideAuth(); render(); setSync("local");
+  const l=lsLoad(); state=l?normalize(l):freshState(); hideAuth(); modeReady=true; render(); setSync("local");
 }
 async function startUser(u){
   sbUser=u; LS_KEY="quran-review-v1:"+u.id; hideAuth();
   const l=lsLoad(); state=l?normalize(l):freshState(); render(); setSync("busy");
   const {data,error}=await sb.from("user_state").select("data").eq("user_id",u.id).maybeSingle();
   dbRef=stateRef(u.id);
-  if(error){ setSync("warn"); if(hasContent(state)) saveSeq++; return; }
+  if(error){ setSync("warn"); if(hasContent(state)){ saveSeq++; modeReady=true; render(); } return; }
   if(data&&data.data){ const r=normalize(data.data); if(r.updatedAt>state.updatedAt||(!state.updatedAt&&hasContent(r))) adoptRemote(r); else if(hasContent(state)) save(); }
   else {
     // a brand-new account: bring along what was recorded on this device without an account
@@ -559,7 +564,7 @@ async function startUser(u){
     if(hasContent(state)) save();
   }
   if(!saveTimer&&!saving) setSync("ok");
-  render();
+  modeReady=true; render();
   try{ if(rtChan) sb.removeChannel(rtChan);
     rtChan=sb.channel("state-"+u.id).on("postgres_changes",{event:"*",schema:"public",table:"user_state",filter:"user_id=eq."+u.id},p=>{
       const d=p.new&&p.new.data; if(!d) return; const r=normalize(d); if(r.updatedAt>state.updatedAt&&!saveTimer&&!saving) adoptRemote(r); }).subscribe();
@@ -707,6 +712,65 @@ function mergeSurah(n){
   save(); render(); toast("دُمجت الأجزاء المتصلة");
 }
 
+// ---- Usage mode: "hifdh" (memorize + review) or "huffaz" (already memorized the whole Quran: review only) ----
+function HUF(){return state.mode==="huffaz";}
+// Review schedule for someone who has memorized the whole Quran: every surah split into parts of about one hizb,
+// with the first due dates spread over the days so that today only shows about one daily goal.
+function fullQuranItems(){
+  const out={}; let cum=0; const g=state.goalH>0?state.goalH:3;
+  for(let n=1;n<=114;n++){
+    const q=SURAHS[n-1][1]; const total=rangeH(n,1,q); const k=Math.max(1,Math.round(total));
+    const cuts=[]; let start=1;
+    for(let j=1;j<k;j++){
+      const target=total*j/k; let a=start+1;
+      while(a<=q&&rangeH(n,1,a-1)<target) a++;
+      if(a-1>start&&Math.abs(rangeH(n,1,a-2)-target)<Math.abs(rangeH(n,1,a-1)-target)) a--;
+      if(a>start&&a<=q){cuts.push(a);start=a;}
+    }
+    const b=[1,...cuts,q+1];
+    for(let i=0;i<b.length-1;i++){
+      const f=b[i],t=b[i+1]-1;
+      out[idOf(n,f,t)]=newItem(n,f,t,{level:3,due:addDays(today(),Math.floor(cum/g+1e-9))});
+      cum+=rangeH(n,f,t);
+    }
+  }
+  return out;
+}
+function setMode(m){
+  if(m!=="hifdh"&&m!=="huffaz") return;
+  if(state.mode===m) return;
+  if(!state.stash||typeof state.stash!=="object") state.stash={};
+  if(m==="huffaz"){
+    // what was there (memorized segments + plan) is kept aside, and comes back if the person returns to "hifdh"
+    state.stash.hifdh={items:state.items,planOn:!!(state.plan&&state.plan.on)};
+    const kept=state.stash.huffaz; delete state.stash.huffaz;
+    state.items=(kept&&kept.items)?kept.items:fullQuranItems();
+    state.plan.on=false;
+  } else if(state.mode==="huffaz"){
+    state.stash.huffaz={items:state.items};
+    const kept=state.stash.hifdh; delete state.stash.hifdh;
+    state.items=(kept&&kept.items)?kept.items:{};
+    state.plan.on=!!(kept&&kept.planOn);
+  }
+  state.mode=m; openEdit=null; openSplit=null; lastUndo=null; hParts=null; showExtra=false;
+  save(); render(); setView("today"); window.scrollTo(0,0);
+  toast(m==="huffaz"?"وضع مراجعة الحفّاظ: جُهّز جدول مراجعة القرآن كاملًا":"وضع الحفظ + المراجعة");
+}
+function applyModeUI(){const b=document.querySelector('.tabbar button[data-v="list"] span'); if(b) b.textContent=HUF()?"السور":"حفظي";}
+function renderModePicker(){
+  const ex=document.getElementById("modePick");
+  if(!modeReady||state.mode||document.getElementById("auth")){ if(ex) ex.remove(); return; }
+  if(ex) return;
+  document.body.insertAdjacentHTML("beforeend",`<div id="modePick" class="auth"><div class="auth-box">
+    <div class="auth-h"><div class="auth-t">مراجعة القرآن</div><div class="auth-s">كيف تريد استعمال التطبيق؟</div></div>
+    <button class="mode-opt" data-pick="hifdh"><b>حفظ + مراجعة</b><span>أحفظ شيئًا جديدًا وأراجع ما حفظته: خطة حفظ يومية، ومراجعة قريبة لما حفظته حديثًا، وجدول مراجعة لمحفوظك.</span></button>
+    <button class="mode-opt" data-pick="huffaz"><b>مراجعة للحفّاظ</b><span>حفظتُ القرآن كاملًا وأريد المراجعة فقط: يُجهَّز لك جدول مراجعة لكل القرآن، دون خطة حفظ ودون أي شيء يخصّ الحفظ.</span></button>
+    <p class="help" style="text-align:center;margin:12px 0 0">يمكنك تغيير هذا الاختيار لاحقًا من الإعدادات.</p>
+  </div></div>`);
+  document.querySelectorAll("#modePick [data-pick]").forEach(b=>b.onclick=()=>setMode(b.dataset.pick));
+}
+function surDue(n){const sg=segs(n);if(!sg.length)return "";const m=sg.map(([,it])=>it.due).sort()[0];const d=diffDays(m,today());return d<=0?"مستحقة":"بعد "+daysTxt(d);}
+
 // ---- Memorization plan ----
 function planOrder(){const a=[];for(let i=1;i<=114;i++)a.push(i);return state.plan.order==="fwd"?a:a.reverse();}
 function isCovered(n,a){for(const [,it] of segs(n))if(a>=it.from&&a<=it.to)return true;return false;}
@@ -782,7 +846,7 @@ function sortedIds(filterFn){
 function dueList(){const t=today();return sortedIds(it=>it.due<=t&&!isRecent(it));}
 // Newly memorized segments are reviewed every day for the first N days, whatever the rating
 function recentDay(it){return it.newAt?diffDays(today(),it.newAt):-1;}
-function isRecent(it){if(!state.recent.on||!it.newAt)return false;const d=recentDay(it);return d>=1&&d<=state.recent.days;}
+function isRecent(it){if(HUF()||!state.recent.on||!it.newAt)return false;const d=recentDay(it);return d>=1&&d<=state.recent.days;}
 function recentIds(){return Object.keys(state.items).filter(id=>isRecent(state.items[id])).sort((a,b)=>{const A=state.items[a],B=state.items[b];return (A.newAt<B.newAt?-1:A.newAt>B.newAt?1:0)||(A.s-B.s)||(A.from-B.from);});}
 function streak(){
   let d=today(), c=0;
@@ -895,7 +959,8 @@ function renderToday(){
   }
   const due=dueList(); const goal=state.goalH;
   let hifdhHTML="";
-  if(state.plan.on){
+  if(HUF()){ hifdhHTML=""; hParts=null; }
+  else if(state.plan.on){
     const done=state.hlog[today()]||0; const por=todaysPortion(); hParts=por;
     if(!por) hifdhHTML=`<div class="card hifdh"><div class="lbl">حفظ اليوم</div><div class="name">أتممت حفظ القرآن كاملًا، بارك الله فيك 🌿</div></div>`;
     else if(!isHifdhDay(today())&&!done&&!showExtra){const nd=nextHifdhDay(today());hifdhHTML=`<div class="card hifdh"><div class="lbl">الحفظ الجديد</div><div class="name" style="font-size:20px">لا حفظ جديد اليوم حسب خطتك</div><div class="meta">الحفظ القادم: ${WDN[wdOf(nd)]} ${fmtDate(nd)} · سورة ${SURAHS[por[0].s-1][0]} من الآية ${por[0].from}. استغلّ اليوم لتثبيت ما حفظته.</div><div class="row-btns" style="justify-content:flex-start"><button class="btn ghost" id="hExtra">أريد أن أحفظ اليوم على أي حال</button></div></div>`;}
@@ -919,7 +984,7 @@ function renderToday(){
   tasks.push({n:"المراجعة",ok:!now.length,v:now.length?segTxt(now.length)+(sum>=0.05?" (≈ "+fmtH(sum)+" حزب)":""):(doneToday?"تمّت":"لا شيء مستحق"),act:'data-scroll="sec-review"'});
   {const dg=dueGroups().length; if(dg) tasks.push({n:"مراجعة المتشابهات",ok:false,v:dg===1?"مجموعة واحدة":dg+" مجموعات",act:'data-mqstart="due"'}); else if(state.mlog&&state.mlog[today()]) tasks.push({n:"مراجعة المتشابهات",ok:true,v:"تمّت",act:'data-mqstart="all"'});}
   if(rec.length) tasks.push({n:"المراجعة القريبة",ok:!recLeft.length,v:recLeft.length?segTxt(recLeft.length):"تمّت",act:'data-scroll="sec-recent"'});
-  if(state.plan.on&&todaysPortion()&&(isHifdhDay(today())||(state.hlog[today()]||0)>0)) tasks.push({n:"الحفظ الجديد",ok:(state.hlog[today()]||0)>0,v:(state.hlog[today()]||0)>0?ayatTxt(state.hlog[today()]):amountTxt(state.plan),act:'data-scroll="sec-hifdh"'});
+  if(!HUF()&&state.plan.on&&todaysPortion()&&(isHifdhDay(today())||(state.hlog[today()]||0)>0)) tasks.push({n:"الحفظ الجديد",ok:(state.hlog[today()]||0)>0,v:(state.hlog[today()]||0)>0?ayatTxt(state.hlog[today()]):amountTxt(state.plan),act:'data-scroll="sec-hifdh"'});
   const qt=qadaToday(); if(qt&&qadaLeftTotal()+qt.dT>0&&qt.qT) tasks.push({n:"قضاء الفوائت",ok:qt.ok,v:qt.dT+" / "+qt.qT,act:'data-go="qada"'});
   if(khS&&!khS.finished) tasks.push({n:"ورد الختمة",ok:khS.k.pos>khS.todayEnd,v:khS.k.pos>khS.todayEnd?"تمّ":"ص "+khS.k.pos+"–"+khS.todayEnd,act:'data-go="khatma"'});
   ["sabah","masa"].forEach(k=>{const c=ADHKAR.find(x=>x.k===k);const ok=(state.adhLog[today()]||[]).includes(k);tasks.push({n:c.n,ok,v:ok?"تمّت":"",act:`data-goadh="${k}"`});});
@@ -966,13 +1031,14 @@ function editorHTML(n){
   const ayat=SURAHS[n-1][1]; const st=statusOf(n); const sg=segs(n);
   let f0=1; for(const [,it] of sg){ if(it.from<=f0&&it.to>=f0) f0=it.to+1; } if(f0>ayat) f0=1;
   return `<div class="editor">
-    ${sg.length?`<div class="meta" style="margin-bottom:6px">المحفوظ من هذه السورة:</div><div class="segs">${sg.map(([id,it])=>`<span class="seg">${isRecent(it)?"★ ":""}${isFull(it)?"السورة كاملة":rangeTxt(it)}<button data-newtog="${id}" title="${it.newAt?"إزالة من المراجعة القريبة":"تعليمه كحفظ جديد (مراجعة يومية)"}" style="color:var(--gold)">${it.newAt?"★":"☆"}</button>${it.to>it.from?`<button data-splitopen="${id}" title="تقسيم للمراجعة" style="color:var(--green)">✂</button>`:""}<button data-delseg="${id}" title="إزالة">✕</button></span>`).join("")}</div>
+    ${sg.length?`<div class="meta" style="margin-bottom:6px">${HUF()?"مقاطع المراجعة:":"المحفوظ من هذه السورة:"}</div><div class="segs">${sg.map(([id,it])=>`<span class="seg">${isRecent(it)?"★ ":""}${isFull(it)?"السورة كاملة":rangeTxt(it)}${HUF()?"":`<button data-newtog="${id}" title="${it.newAt?"إزالة من المراجعة القريبة":"تعليمه كحفظ جديد (مراجعة يومية)"}" style="color:var(--gold)">${it.newAt?"★":"☆"}</button>`}${it.to>it.from?`<button data-splitopen="${id}" title="تقسيم للمراجعة" style="color:var(--green)">✂</button>`:""}${HUF()?"":`<button data-delseg="${id}" title="إزالة">✕</button>`}</span>`).join("")}</div>
     ${openSplit&&state.items[openSplit]&&state.items[openSplit].s===n?(()=>{const it=state.items[openSplit];const mid=Math.floor((it.from+it.to+1)/2);return `<div class="split-box">
       <div style="font-weight:600;margin-bottom:6px">تقسيم ${isFull(it)?"السورة":rangeTxt(it)} للمراجعة</div>
       <div class="seg-form"><label>قسّم عند الآية <input type="number" id="splitA" min="${it.from+1}" max="${it.to}" value="${mid}"></label><button class="btn" data-splitat="${openSplit}">قسّم إلى جزأين</button></div>
       <div class="seg-form" style="margin-top:8px"><label>أو أجزاء بحجم حوالي <input type="number" id="splitH" min="0.25" step="0.25" value="${Math.min(1,Math.max(0.25,Math.round(rangeH(it.s,it.from,it.to)/2*4)/4))}"> حزب</label><button class="btn" data-splith="${openSplit}">قسّم</button></div>
       <p class="help">حجم هذا المقطع حوالي ${fmtH(rangeH(it.s,it.from,it.to))} حزب. كل جزء يُراجَع وحده وله جدوله الخاص.</p></div>`;})():""}
     ${sg.length>1&&sg.some(([,a],i)=>i>0&&a.from<=sg[i-1][1].to+1)?`<button class="linkbtn" data-merge="${n}" style="font-size:13px;margin-bottom:8px">↺ دمج الأجزاء المتصلة في مقطع واحد</button>`:""}`:`<div class="meta" style="margin-bottom:6px">لم تحدّد شيئًا من هذه السورة بعد.</div>`}
+${HUF()?`<p class="help">عدد آيات السورة: ${ayat}. اضغط ✂ لتقسيم السورة أو المقطع إلى أجزاء تراجع كل جزء منها وحده، أو «دمج» لإعادة الأجزاء المتصلة إلى مقطع واحد.</p>`:`
     <div class="seg-form">
       <label>من الآية <input type="number" id="from-${n}" min="1" max="${ayat}" value="${f0}"></label>
       <label>إلى الآية <input type="number" id="to-${n}" min="1" max="${ayat}" value="${ayat}"></label>
@@ -983,7 +1049,7 @@ function editorHTML(n){
       ${st!=="full"?`<button class="btn ghost" data-full="${n}">حفظتها كاملة</button>`:""}
       ${sg.length?`<button class="btn ghost" data-clear="${n}" style="border-color:var(--red);color:var(--red)">إلغاء الحفظ</button>`:""}
     </div>
-    <p class="help">عدد آيات السورة: ${ayat}. اضغط ✂ لتقسيم السورة أو المقطع إلى أجزاء تراجع كل جزء منها وحده.</p>
+    <p class="help">عدد آيات السورة: ${ayat}. اضغط ✂ لتقسيم السورة أو المقطع إلى أجزاء تراجع كل جزء منها وحده.</p>`}
   </div>`;
 }
 
@@ -1052,7 +1118,7 @@ function renderMQ(){
   const el=document.getElementById("v-mquiz");
   if(!mq||!Q){el.innerHTML=`<button class="linkbtn" data-go="today">→ اليوم</button><div class="card empty"><p class="meta">لا يوجد اختبار جارٍ.</p></div>`;return;}
   const g=state.mutash.find(x=>x.id===mq.ids[mq.i]);
-  if(!g){ el.innerHTML=`<button class="linkbtn" data-go="list">→ حفظي</button><h2 class="page-t">مراجعة المتشابهات</h2><div class="card empty"><div class="name">أتممت ✓</div><p class="meta">راجعت ${mq.ids.length===1?"مجموعة واحدة":mq.ids.length+" مجموعات"}.</p><div class="row-btns"><button class="btn" data-go="today">العودة إلى اليوم</button></div></div>`; return; }
+  if(!g){ el.innerHTML=`<button class="linkbtn" data-go="list">→ ${HUF()?"السور":"حفظي"}</button><h2 class="page-t">مراجعة المتشابهات</h2><div class="card empty"><div class="name">أتممت ✓</div><p class="meta">راجعت ${mq.ids.length===1?"مجموعة واحدة":mq.ids.length+" مجموعات"}.</p><div class="row-btns"><button class="btn" data-go="today">العودة إلى اليوم</button></div></div>`; return; }
   const it=g.items[mq.k]; const last=mq.k===g.items.length-1; const p=mqPrompt(it);
   el.innerHTML=`<button class="linkbtn" data-mqexit="1">→ إنهاء</button>
     <h2 class="page-t">مراجعة المتشابهات</h2>
@@ -1123,10 +1189,10 @@ function renderTests(){
       : (answered?`<div class="row-btns"><button class="btn ghost" data-tgrade="0" style="border-color:var(--red);color:var(--red)">أخطأت</button><button class="btn" data-tgrade="1" style="background:var(--green);color:#fff">أصبت</button></div>`
                  :`<div class="row-btns"><button class="btn" data-tshow="1">أظهر الجواب</button></div>`);
   }
-  el.innerHTML=`<button class="linkbtn" data-go="list">→ حفظي</button><h2 class="page-t">اختبر حفظك</h2>
+  el.innerHTML=`<button class="linkbtn" data-go="list">→ ${HUF()?"السور":"حفظي"}</button><h2 class="page-t">${HUF()?"اختبر نفسك":"اختبر حفظك"}</h2>
     <div class="chips">${modes.map(([k,n])=>`<button class="chip ${tst.mode===k?"on":""}" data-tmode="${k}">${n}</button>`).join("")}</div>
     ${tst.n?`<p class="meta">النتيجة: ${tst.ok} من ${tst.n}</p>`:""}${body}
-    <p class="help" style="text-align:center">الأسئلة من الآيات التي سجّلتها في «حفظي» فقط.</p>`;
+    <p class="help" style="text-align:center">${HUF()?"الأسئلة من آيات القرآن كلّه.":"الأسئلة من الآيات التي سجّلتها في «حفظي» فقط."}</p>`;
 }
 
 // ---- Weekly summary (rolling 7-day windows, compared with the 7 days before) ----
@@ -1175,7 +1241,7 @@ function renderWeek(){
     <div class="card"><div class="wk-days">${dots}</div><p class="meta" style="margin:6px 0 0;text-align:center">نشِطت ${daysTxt(W.activeDays)} من 7 · الخانة الملوّنة = بلغت هدف المراجعة</p></div>
     <div class="card" style="margin-top:10px">
       ${row("المراجعة",segTxt(W.rev),trend(W.rev,P.rev),`≈ ${fmtH(W.revH)} حزب · بلغت الهدف ${W.goalDays}/7`)}
-      ${row("الحفظ الجديد",W.hif?ayatTxt(W.hif):"—",trend(W.hif,P.hif),W.newSegs.length?W.newSegs.slice(0,4).map(it=>SURAHS[it.s-1][0]+" "+it.from+"–"+it.to).join("، "):"")}
+      ${HUF()?"":row("الحفظ الجديد",W.hif?ayatTxt(W.hif):"—",trend(W.hif,P.hif),W.newSegs.length?W.newSegs.slice(0,4).map(it=>SURAHS[it.s-1][0]+" "+it.from+"–"+it.to).join("، "):"")}
       ${state.kh||W.kh?row("ورد الختمة",W.kh?pagesTxt(W.kh):"—",trend(W.kh,P.kh)):""}
       ${row("الأذكار",`${W.sabah+W.masa}/14`,trend(W.sabah+W.masa,P.sabah+P.masa),`الصباح ${W.sabah}/7 · المساء ${W.masa}/7 · النوم ${W.nawm}/7`)}
       ${state.qada||W.qada?row("قضاء الفوائت",W.qada?prayersTxt(W.qada):"—",trend(W.qada,P.qada),state.qada?"المتبقي: "+prayersTxt(qadaLeftTotal()):""):""}
@@ -1200,14 +1266,15 @@ function renderList(){
   const q=listQuery.trim();
   const rows=SURAHS.map((s,i)=>i+1).filter(n=>{
     const st=statusOf(n);
-    if(listFilter==="mem"&&st==="none") return false;
-    if(listFilter==="not"&&st!=="none") return false;
+    if(!HUF()&&listFilter==="mem"&&st==="none") return false;
+    if(!HUF()&&listFilter==="not"&&st!=="none") return false;
     if(q){ return SURAHS[n-1][0].includes(q)||String(n)===q; }
     return true;
   });
   const memCount=SURAHS.filter((_,i)=>statusOf(i+1)!=="none").length;
   const dg=dueGroups().length;
-  el.innerHTML=`<div class="card" style="margin-bottom:12px"><div style="font-weight:600">اختبر حفظك</div><div class="chips" style="margin:8px 0 0"><button class="chip" data-tstart="complete">أكمل الآية</button><button class="chip" data-tstart="where">أين هذه الآية؟</button><button class="chip" data-tstart="link">ربط الآيات</button>${state.mutash.length?`<button class="chip ${dg?"on":""}" data-mqstart="${dg?"due":"all"}">≈ المتشابهات${dg?" ("+dg+" مستحقة)":""}</button>`:""}</div></div>`+mutashCard()+`<div class="tools"><input type="search" id="q" placeholder="ابحث عن سورة…" value="${esc(listQuery)}"></div>
+  el.innerHTML=`<div class="card" style="margin-bottom:12px"><div style="font-weight:600">${HUF()?"اختبر نفسك":"اختبر حفظك"}</div><div class="chips" style="margin:8px 0 0"><button class="chip" data-tstart="complete">أكمل الآية</button><button class="chip" data-tstart="where">أين هذه الآية؟</button><button class="chip" data-tstart="link">ربط الآيات</button>${state.mutash.length?`<button class="chip ${dg?"on":""}" data-mqstart="${dg?"due":"all"}">≈ المتشابهات${dg?" ("+dg+" مستحقة)":""}</button>`:""}</div></div>`+mutashCard()+`<div class="tools"><input type="search" id="q" placeholder="ابحث عن سورة…" value="${esc(listQuery)}"></div>
+${HUF()?`<p class="help">اضغط على سورة لتقسيمها إلى أجزاء للمراجعة، أو لدمج أجزائها. كل جزء له جدوله الخاص.</p>`:`
     <div class="chips">
       <button class="chip ${listFilter==="all"?"on":""}" data-f="all">الكل (114)</button>
       <button class="chip ${listFilter==="mem"?"on":""}" data-f="mem">محفوظة (${memCount})</button>
@@ -1215,12 +1282,12 @@ function renderList(){
       <button class="chip" data-range="78-114">+ جزء عمّ</button>
       <button class="chip" data-range="67-77">+ جزء تبارك</button>
     </div>
-    <p class="help">اضغط على سورة لتحديد ما تحفظه منها: السورة كاملة أو آيات معيّنة (مثلًا نصفها).</p>
+    <p class="help">اضغط على سورة لتحديد ما تحفظه منها: السورة كاملة أو آيات معيّنة (مثلًا نصفها).</p>`}
     <div class="card list" style="padding:4px 12px">${rows.map(n=>{
       const st=statusOf(n); const sg=segs(n);
       const sub=st==="part"?sg.map(([,it])=>rangeTxt(it)).join("، "):(sg.length>1?"مقسّمة إلى "+partsTxt(sg.length)+" للمراجعة":"");
       const h=sg.reduce((a,[,it])=>a+itemH(it),0);
-      return `<div class="s ${st==="full"?"on":st==="part"?"part":""}" data-edit="${n}"><div class="check">${st==="full"?"✓":""}</div><div class="num">${n}</div><div class="grow"><div class="name">${SURAHS[n-1][0]}</div>${sub?`<div class="meta">${sub}</div>`:""}</div><span class="meta">${st==="part"?fmtH(h)+" من "+fmtH(HIZB[n-1]):fmtH(HIZB[n-1])} حزب</span></div>${openEdit===n?editorHTML(n):""}`;
+      return `<div class="s ${HUF()?"":st==="full"?"on":st==="part"?"part":""}" data-edit="${n}"><div class="check">${st==="full"&&!HUF()?"✓":""}</div><div class="num">${n}</div><div class="grow"><div class="name">${SURAHS[n-1][0]}</div>${sub?`<div class="meta">${sub}</div>`:""}</div><span class="meta">${HUF()?surDue(n)+" · "+fmtH(HIZB[n-1])+" حزب":(st==="part"?fmtH(h)+" من "+fmtH(HIZB[n-1]):fmtH(HIZB[n-1]))+" حزب"}</span></div>${openEdit===n?editorHTML(n):""}`;
     }).join("")||`<p class="meta" style="padding:12px">لا توجد نتائج.</p>`}</div>`;
   const md=document.getElementById("mshDetails"); if(md) md.ontoggle=()=>{mshOpen=md.open;};
   const qi=document.getElementById("q");
@@ -1428,7 +1495,7 @@ const WD=["الإثنين","الثلاثاء","الأربعاء","الخميس",
 function hijriParts(d){try{const [y,m,dd]=d.split("-").map(Number);const f=new Intl.DateTimeFormat("ar-u-ca-islamic-umalqura-nu-latn",{day:"numeric",month:"long",year:"numeric"});const o={};f.formatToParts(new Date(y,m-1,dd)).forEach(x=>o[x.type]=x.value);return o;}catch(e){return {};}}
 function dayInfo(d){
   const t=today();
-  const info={rev:state.log[d]||0,revH:state.rH[d]||0,hif:state.hlog[d]||0,adh:state.adhLog[d]||[],kh:(state.kh&&state.kh.log[d])||0,cust:(state.hdone[d]||[]).length};
+  const info={rev:state.log[d]||0,revH:state.rH[d]||0,hif:HUF()?0:(state.hlog[d]||0),adh:state.adhLog[d]||[],kh:(state.kh&&state.kh.log[d])||0,cust:(state.hdone[d]||[]).length};
   if(d>=t){ info.due=Object.values(state.items).filter(it=>!isRecent(it)&&(d===t?it.due<=t:it.due===d)).length; }
   info.any=info.rev||info.hif||info.adh.length||info.kh||info.cust;
   return info;
@@ -1477,7 +1544,7 @@ function calendarCard(){
       <div style="text-align:center"><div class="cal-g">${gName}</div><div class="meta">${hName}</div></div>
       <button class="icon-nav" data-calnav="1" aria-label="الشهر التالي">‹</button></div>
     <div class="cal-grid">${["إثنين","ثلاثاء","أربعاء","خميس","جمعة","سبت","أحد"].map(w=>`<div class="cwd">${w}</div>`).join("")}${cells}</div>
-    <div class="cal-legend"><span><i class="c-rev"></i>مراجعة</span><span><i class="c-hif"></i>حفظ</span><span><i class="c-adh"></i>أذكار</span><span><i class="c-kh"></i>ختمة</span><span><b class="lg-goal"></b>بلغت هدف المراجعة</span><span><b class="due" style="position:static">3</b>مراجعات قادمة</span></div>
+    <div class="cal-legend"><span><i class="c-rev"></i>مراجعة</span>${HUF()?"":`<span><i class="c-hif"></i>حفظ</span>`}<span><i class="c-adh"></i>أذكار</span><span><i class="c-kh"></i>ختمة</span><span><b class="lg-goal"></b>بلغت هدف المراجعة</span><span><b class="due" style="position:static">3</b>مراجعات قادمة</span></div>
     ${detail}
     ${calYM.join("-")!==t.slice(0,7).split("-").map(Number).join("-")?`<div class="row-btns" style="margin-top:8px"><button class="linkbtn" data-calnav="0">العودة إلى هذا الشهر</button></div>`:""}
   </div>`;
@@ -1487,7 +1554,7 @@ function calendarCard(){
 function autoHabits(){
   const a=[
     {id:"review",n:"المراجعة",auto:true,ok:d=>(state.rH[d]||0)>=state.goalH*0.9,half:d=>(state.log[d]||0)>0},
-    {id:"hifdh",n:"الحفظ الجديد",auto:true,ok:d=>(state.hlog[d]||0)>0,off:d=>state.plan.on&&!isHifdhDay(d)&&!(state.hlog[d]||0)},
+    ...(HUF()?[]:[{id:"hifdh",n:"الحفظ الجديد",auto:true,ok:d=>(state.hlog[d]||0)>0,off:d=>state.plan.on&&!isHifdhDay(d)&&!(state.hlog[d]||0)}]),
     {id:"sabah",n:"أذكار الصباح",auto:true,ok:d=>(state.adhLog[d]||[]).includes("sabah")},
     {id:"masa",n:"أذكار المساء",auto:true,ok:d=>(state.adhLog[d]||[]).includes("masa")},
     {id:"nawm",n:"أذكار النوم",auto:true,ok:d=>(state.adhLog[d]||[]).includes("nawm")},
@@ -1517,7 +1584,7 @@ function habitsCard(){
       <div></div>${days.map((d,i)=>`<div class="hday">${i===0?"اليوم":dl(d)}</div>`).join("")}<div class="hday">🔥</div>
       ${hs.map(h=>`<div class="hname">${esc(h.n)}${h.auto?"":` <button class="linkbtn" data-hdel="${h.id}" title="حذف" style="color:var(--muted);font-size:12px">✕</button>`}</div>${days.map(d=>{const ok=h.ok(d);const half=!ok&&h.half&&h.half(d);const rest=!ok&&h.off&&h.off(d);return `<button class="hcell ${ok?"ok":half?"half":rest?"rest":""} ${h.auto?"auto":""}" ${h.auto?`title="${ok?"تمّ":"لم يتمّ"}"`:`data-htog="${h.id}" data-hd="${d}"`}>${ok?"✓":""}</button>`;}).join("")}<div class="hstreak">${habitStreak(h)}</div>`).join("")}
     </div>
-    <p class="help">تُسجَّل المراجعة والحفظ والأذكار تلقائيًا من استعمالك للتطبيق. تُعدّ المراجعة متمّمة إذا بلغت هدفك اليومي (${fmtH(state.goalH)} حزب)، ونصف الخانة يعني أنك بدأت دون أن تُتمّ: المراجعة دون بلوغ الهدف، أو قضاء الفوائت دون عدد اليوم كاملًا، أو المسبحة دون بلوغ عدد كل الأذكار. والخانة المخطّطة يوم لا حفظ فيه حسب خطتك، فلا تقطع السلسلة. العادات التي تضيفها بنفسك تُعلَّم بالضغط على الخانة.</p>
+    <p class="help">${HUF()?"تُسجَّل المراجعة والأذكار":"تُسجَّل المراجعة والحفظ والأذكار"} تلقائيًا من استعمالك للتطبيق. تُعدّ المراجعة متمّمة إذا بلغت هدفك اليومي (${fmtH(state.goalH)} حزب)، ونصف الخانة يعني أنك بدأت دون أن تُتمّ: المراجعة دون بلوغ الهدف، أو قضاء الفوائت دون عدد اليوم كاملًا، أو المسبحة دون بلوغ عدد كل الأذكار. ${HUF()?"":"والخانة المخطّطة يوم لا حفظ فيه حسب خطتك، فلا تقطع السلسلة. "}العادات التي تضيفها بنفسك تُعلَّم بالضغط على الخانة.</p>
     <div class="seg-form" style="margin-top:6px"><input type="text" id="hNew" maxlength="40" placeholder="عادة جديدة، مثلًا: قيام الليل" style="flex:1;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--card);color:var(--ink)"><button class="btn" id="hAdd">إضافة</button></div>
     <div style="font-weight:600;margin-top:16px;font-size:14px">آخر 30 يومًا</div>
     <div class="heat">${month.map(([d,k])=>`<div title="${d}: ${k} / ${hs.length}" style="background:${k?`color-mix(in srgb,var(--green) ${Math.round(18+k/hs.length*82)}%,transparent)`:"var(--line)"}"></div>`).join("")}</div>
@@ -1535,9 +1602,11 @@ function renderStats(){
   const weak=ids.filter(id=>state.items[id].level<=1&&state.items[id].reviews>0).sort((a,b)=>state.items[a].s-state.items[b].s||state.items[a].from-state.items[b].from);
   const days=[];for(let i=13;i>=0;i--){const d=addDays(today(),-i);days.push([d,state.log[d]||0]);}
   const mx=Math.max(1,...days.map(d=>d[1]));
+  const wkH=[0,1,2,3,4,5,6].reduce((a,i)=>a+(state.rH[addDays(today(),-i)]||0),0);
   el.innerHTML=`<button class="wk-entry" data-go="week"><span><b>الملخّص الأسبوعي</b><span class="meta" style="display:block">ما أنجزته في آخر 7 أيام وما تركّز عليه</span></span><span aria-hidden="true">‹</span></button>`+calendarCard()+habitsCard()+`<div class="stats">
-      <div class="card stat"><div class="v">${full}<span style="font-size:18px"> / 114</span></div><div class="k">سورة محفوظة كاملة${part?" + "+part+" جزئيًا":""}</div></div>
-      <div class="card stat"><div class="v">${fmtH(ahzab)}<span style="font-size:18px"> / 60</span></div><div class="k">حزبًا محفوظًا (تقريبًا)</div></div>
+      ${HUF()?`<div class="card stat"><div class="v">${fmtH(wkH)}</div><div class="k">حزبًا راجعتها في آخر 7 أيام</div></div>
+      <div class="card stat"><div class="v">${Math.ceil(60/Math.max(0.5,state.goalH))}<span style="font-size:18px"> يومًا</span></div><div class="k">لمراجعة القرآن كاملًا بهدفك الحالي</div></div>`:`<div class="card stat"><div class="v">${full}<span style="font-size:18px"> / 114</span></div><div class="k">سورة محفوظة كاملة${part?" + "+part+" جزئيًا":""}</div></div>
+      <div class="card stat"><div class="v">${fmtH(ahzab)}<span style="font-size:18px"> / 60</span></div><div class="k">حزبًا محفوظًا (تقريبًا)</div></div>`}
       <div class="card stat"><div class="v">🔥 ${streak()}</div><div class="k">أيام مراجعة متتالية</div></div>
       <div class="card stat"><div class="v">${total}</div><div class="k">مراجعة في المجموع</div></div>
     </div>
@@ -1554,7 +1623,7 @@ function renderStats(){
   document.getElementById("hNew").onkeydown=e=>{if(e.key==="Enter")document.getElementById("hAdd").click();};
 }
 
-function freshState(keep){return Object.assign({v:2,items:{},log:{},mistakes:{},goalH:3,goalSet:false,hlog:{},plan:{on:false,amount:1,unit:"page",order:"back",days:[0,1,2,3,4,5,6]},rH:{},habits:[],hdone:{},adhLog:{},adh:{date:today(),p:{}},kh:null,khDone:[],recent:{on:true,days:30},mutash:[],tsb:normTsb(null),updatedAt:0},keep||{});}
+function freshState(keep){return Object.assign({v:2,items:{},log:{},mistakes:{},goalH:3,goalSet:false,hlog:{},plan:{on:false,amount:1,unit:"page",order:"back",days:[0,1,2,3,4,5,6]},rH:{},habits:[],hdone:{},adhLog:{},adh:{date:today(),p:{}},kh:null,khDone:[],recent:{on:true,days:30},mutash:[],tsb:normTsb(null),mode:"",stash:{},updatedAt:0},keep||{});}
 let pendingRestore=null;
 async function doBackup(){
   const data=JSON.stringify(Object.assign({app:"quran-review-qalun"},state),null,1);
@@ -1569,6 +1638,11 @@ function renderSettings(){
     local:["على هذا الجهاز فقط",sbUser?"لم يتمكن التطبيق من الوصول إلى حسابك.":"أنت تستعمل التطبيق دون حساب، فبياناتك محفوظة على هذا الجهاز فقط. سجّل الدخول لتصل إليها من أجهزتك الأخرى."],
     warn:[navigator.onLine?"تعذّر الاتصال":"دون إنترنت","التطبيق يعمل دون إنترنت، وتغييراتك محفوظة على هذا الجهاز وتُرسَل إلى حسابك تلقائيًا عند عودة الاتصال."]}[syncMode]||["…",""];
   el.innerHTML=`<h2 class="page-t">الإعدادات</h2>
+    <div class="card" style="margin-bottom:10px"><div style="font-weight:600">طريقة الاستعمال</div>
+      <p class="help">${HUF()?"الوضع الحالي: مراجعة للحفّاظ (حافظ للقرآن كاملًا، مراجعة فقط).":"الوضع الحالي: حفظ + مراجعة."}</p>
+      <div class="bar-acts"><button class="btn ghost sm" id="modeSw">${HUF()?"التحويل إلى: حفظ + مراجعة":"التحويل إلى: مراجعة للحفّاظ"}</button></div>
+      <div id="modeConfirm" class="hidden" style="margin-top:10px"><p class="meta">${HUF()?"ستعود إلى محفوظك السابق وخطة الحفظ كما تركتهما. وجدول مراجعة الحفّاظ يُحفظ جانبًا فتجده إن رجعت إليه.":"سيُجهَّز جدول مراجعة لكل القرآن، ويُحفظ محفوظك الحالي وخطة الحفظ جانبًا فتعود إليهما إن رجعت إلى هذا الوضع."}</p><div class="row-btns" style="justify-content:flex-start"><button class="btn" id="modeYes">نعم، حوّل</button><button class="btn ghost" id="modeNo">إلغاء</button></div></div>
+    </div>
     <div class="card"><div style="font-weight:600">الحساب والمزامنة</div>
       <div class="setting"><span>${sbUser?`<span dir="ltr" style="font-weight:500">${esc(sbUser.email||"")}</span>`:`<span class="meta">دون حساب</span>`}</span><span class="sync ${syncMode}" style="cursor:default"><i></i><span>${sm[0]}</span></span></div>
       <p class="help">${sm[1]}</p>
@@ -1584,12 +1658,14 @@ function renderSettings(){
       <div class="setting"><span class="meta">إضافة مواقيت شهر جديد: صدّر التقويم من تطبيق Mawaqit (ملف ‎.ics) ثم اختره هنا</span><label class="btn ghost" style="flex:none;cursor:pointer">اختيار ملف<input type="file" id="icsFile" accept=".ics,text/calendar" style="display:none"></label></div>
     </div>
     <div class="card" style="margin-top:10px"><div style="font-weight:600">المراجعة</div>
+${HUF()?"":`
       <div class="setting"><label for="rOn">المراجعة القريبة (الحفظ الجديد يُراجَع يوميًا)</label><input type="checkbox" id="rOn" ${state.recent.on?"checked":""} style="width:22px;height:22px;flex:none"></div>
       <div class="setting"><label for="rDays">مدتها</label><select id="rDays" style="font:inherit;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--card);color:var(--ink)">${[7,14,30,40,60].map(x=>`<option value="${x}" ${state.recent.days===x?"selected":""}>${daysTxt(x)}</option>`).join("")}</select></div>
-      <p class="help">ما تحفظه من «حفظ اليوم» يدخل المراجعة القريبة تلقائيًا. ولتعليم مقطع حفظته حديثًا بنفسك: في «حفظي» اضغط ☆ بجانبه.</p>
+      <p class="help">ما تحفظه من «حفظ اليوم» يدخل المراجعة القريبة تلقائيًا. ولتعليم مقطع حفظته حديثًا بنفسك: في «حفظي» اضغط ☆ بجانبه.</p>`}
       <div class="setting"><label for="goal">هدف المراجعة اليومي (عدد الأحزاب)</label><input type="number" id="goal" min="0.5" max="60" step="0.5" value="${state.goalH}"></div>
       <p class="help">يقترح التطبيق مقاطع للمراجعة حتى يبلغ هذا العدد من الأحزاب، وما يزيد يظهر في قسم «إن كان لديك وقت إضافي». الحجم بالأحزاب تقريبي (محسوب من عدد صفحات المصحف، ولجزء السورة بنسبة عدد آياته).</p>
     </div>
+    ${HUF()?"":`
     <div class="card" style="margin-top:10px" id="planCard"><div style="font-weight:600">خطة الحفظ</div>
       <div class="setting"><label for="pOn">تفعيل خطة الحفظ</label><input type="checkbox" id="pOn" ${state.plan.on?"checked":""} style="width:22px;height:22px"></div>
       <div class="setting"><label>المقدار في كل يوم حفظ</label><span style="display:flex;gap:6px"><input type="number" id="pAmt" min="0.25" step="${state.plan.unit==="ayah"?1:0.25}" value="${state.plan.amount}"><select id="pUnit" style="font:inherit;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--card);color:var(--ink)">${Object.entries(UNITS).map(([k,u])=>`<option value="${k}" ${state.plan.unit===k?"selected":""}>${u.name}</option>`).join("")}</select></span></div>
@@ -1600,18 +1676,18 @@ function renderSettings(){
       ${(()=>{const r=remainingH();const d=dailyH();const sessions=d>0?Math.ceil(r/d):0;const days=Math.ceil(sessions*7/state.plan.days.length);const st=nextStart();const wk=[0,1,2,3,4,5,6].reduce((a,i)=>a+(state.hlog[addDays(today(),-i)]||0),0);
         return `<p class="help">${st?"المقطع الجديد يبدأ من سورة "+SURAHS[st.s-1][0]+"، الآية "+st.a+". ":""}بقي حوالي ${fmtH(r)} حزب؛ بمقدار ${amountTxt(state.plan)} ${state.plan.days.length===7?"يوميًا":"في كل يوم حفظ ("+hifdhDaysTxt()+")"} تُتمّ الحفظ في حوالي ${daysTxt(days)}${days>60?" (≈ "+(Math.round(days/30.4*10)/10)+" شهرًا)":""}. حفظت في آخر 7 أيام: ${ayatTxt(wk)}.</p>`;})()}
       <p class="help">الصفحة محسوبة من أسطر مصحف قالون، والثُّمن تقريبي (من حجم النص). إذا انتهت السورة قبل المقدار اليومي، يُكمَل من السورة التالية.</p>
-    </div>
+    </div>`}
     <div class="card" style="margin-top:10px"><div style="font-weight:600">البيانات</div>
       <div class="setting"><span class="meta">نسخة احتياطية من كل بياناتك في ملف تحتفظ به</span><button class="btn ghost" data-backup="1" style="flex:none">تنزيل</button></div>
       <div class="setting"><span class="meta">استرجاع البيانات من ملف نسخة احتياطية</span><label class="btn ghost" style="flex:none;cursor:pointer">اختيار ملف<input type="file" id="restoreFile" accept=".json,application/json" style="display:none"></label></div>
       <div id="restoreBox" class="hidden"></div>
-      <div class="setting" style="margin-top:14px"><span class="meta">البدء من جديد: يحذف المحفوظ والمراجعات والأخطاء والختمة وسجلّ العادات (تبقى الإعدادات والعادات التي أضفتها)</span><button class="btn ghost" id="reset" style="border-color:var(--red);color:var(--red);flex:none">مسح</button></div>
+      <div class="setting" style="margin-top:14px"><span class="meta">${HUF()?"البدء من جديد: يعيد جدول المراجعة والأخطاء والختمة وسجلّ العادات إلى البداية (تبقى الإعدادات والعادات التي أضفتها)":"البدء من جديد: يحذف المحفوظ والمراجعات والأخطاء والختمة وسجلّ العادات (تبقى الإعدادات والعادات التي أضفتها)"}</span><button class="btn ghost" id="reset" style="border-color:var(--red);color:var(--red);flex:none">مسح</button></div>
       <div id="resetConfirm" class="hidden" style="margin-top:10px"><p class="meta">هل أنت متأكد؟ سيُحذف كل تقدّمك من كل أجهزتك.</p><div class="row-btns" style="justify-content:flex-start"><button class="btn" id="resetYes" style="background:var(--red)">نعم، احذف</button><button class="btn ghost" id="resetNo">لا</button></div></div>
     </div>`;
   const pSave=()=>{const u=document.getElementById("pUnit").value;let a=Number(document.getElementById("pAmt").value);if(!(a>0))a=1;if(u==="ayah")a=Math.max(1,Math.round(a));else a=Math.max(0.25,Math.round(a*4)/4);state.plan={on:document.getElementById("pOn").checked,amount:a,unit:u,order:document.getElementById("pOrd").value,days:state.plan.days};save();renderSettings();};
   document.querySelectorAll("[data-pday]").forEach(b=>b.onclick=()=>{const i=Number(b.dataset.pday);let ds=state.plan.days.slice();ds=ds.includes(i)?ds.filter(x=>x!==i):[...ds,i].sort();if(!ds.length){toast("اختر يومًا واحدًا على الأقل");return;}state.plan.days=ds;save();renderSettings();});
   document.querySelectorAll("[data-pdays]").forEach(b=>b.onclick=()=>{state.plan.days=b.dataset.pdays.split("").map(Number).sort();save();renderSettings();});
-  ["pOn","pAmt","pUnit","pOrd"].forEach(id=>document.getElementById(id).onchange=pSave);
+  ["pOn","pAmt","pUnit","pOrd"].forEach(id=>{const e=document.getElementById(id);if(e)e.onchange=pSave;});
   document.getElementById("goal").onchange=e=>{const v=Math.min(60,Math.max(0.5,Math.round((Number(e.target.value)||3)*2)/2));state.goalH=v;state.goalSet=true;e.target.value=v;save();toast("الهدف: "+fmtH(v)+" حزب في اليوم");};
   document.getElementById("icsFile").onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const r=parseIcs(String(rd.result||""));const n=Object.keys(r.days).length;
     if(!n){toast("لم أجد مواقيت صلاة في هذا الملف. تأكد أنه ملف ‎.ics من Mawaqit.");return;}
@@ -1629,16 +1705,18 @@ function renderSettings(){
     rd.readAsText(f);e.target.value="";};
   const so=document.getElementById("sOut"); if(so) so.onclick=signOut;
   const si=document.getElementById("sIn"); if(si) si.onclick=()=>{try{localStorage.removeItem("qa-guest");}catch(e){}showAuth("login");};
+  const mSw=document.getElementById("modeSw"); if(mSw){mSw.onclick=()=>document.getElementById("modeConfirm").classList.toggle("hidden");document.getElementById("modeNo").onclick=()=>document.getElementById("modeConfirm").classList.add("hidden");document.getElementById("modeYes").onclick=()=>setMode(HUF()?"hifdh":"huffaz");}
   const rSave=()=>{state.recent={on:document.getElementById("rOn").checked,days:Number(document.getElementById("rDays").value)||30};save();renderSettings();};
-  document.getElementById("rOn").onchange=rSave; document.getElementById("rDays").onchange=rSave;
+  {const e1=document.getElementById("rOn"),e2=document.getElementById("rDays");if(e1)e1.onchange=rSave;if(e2)e2.onchange=rSave;}
   document.getElementById("reset").onclick=()=>document.getElementById("resetConfirm").classList.remove("hidden");
   document.getElementById("resetNo").onclick=()=>document.getElementById("resetConfirm").classList.add("hidden");
-  document.getElementById("resetYes").onclick=()=>{state=freshState({goalH:state.goalH,goalSet:state.goalSet,plan:state.plan,habits:state.habits,recent:state.recent});save();setView("today");toast("تم حذف كل شيء");};
+  document.getElementById("resetYes").onclick=()=>{state=freshState({goalH:state.goalH,goalSet:state.goalSet,plan:state.plan,habits:state.habits,recent:state.recent,mode:state.mode}); if(HUF()) state.items=fullQuranItems(); save();setView("today");toast("تم حذف كل شيء");};
 }
 
 function render(){
   ["today","list","stats","mushaf","adhkar","khatma","settings","qada","mquiz","tests","week"].forEach(v=>document.getElementById("v-"+v).classList.toggle("hidden",v!==view));
   if(view==="today") renderToday(); else if(view==="list") renderList(); else if(view==="mushaf") renderMushaf(); else if(view==="adhkar") renderAdhkar(); else if(view==="khatma") renderKhatma(); else if(view==="settings") renderSettings(); else if(view==="qada") renderQada(); else if(view==="mquiz") renderMQ(); else if(view==="tests") renderTests(); else if(view==="week") renderWeek(); else renderStats();
+  applyModeUI(); renderModePicker();
 }
 
 function saveNoteFrom(id){
@@ -1845,6 +1923,7 @@ document.addEventListener("click",e=>{
   const t=e.target.closest("[data-lall],[data-lexp],[data-wknav],[data-tsel],[data-tstart],[data-tmode],[data-tshow],[data-tgrade],[data-tpick],[data-tnext],[data-tmist],[data-mqstart],[data-mqrate],[data-mqexit],[data-mshaya],[data-mshitem],[data-goloc],[data-munit],[data-qa],[data-qaundo],[data-cal],[data-calnav],[data-scroll],[data-newtog],[data-mmode],[data-backup],[data-restore],[data-khd],[data-khopen],[data-htog],[data-hdel],[data-goadh],[data-adcat],[data-adtap],[data-hopen],[data-splitopen],[data-splitat],[data-splith],[data-merge],[data-aya],[data-openaya],[data-open],[data-rate],[data-edit],[data-range],[data-go],[data-f],[data-notebtn],[data-addseg],[data-delseg],[data-full],[data-clear]");
   if(!t) return;
   const d=t.dataset;
+  if(HUF()&&(d.addseg||d.delseg||d.full||d.clear||d.range||d.newtog)) return;
   if(d.lall){laterAll=true;renderToday();return;}
   if(d.lexp){laterExp.add(d.lexp);renderToday();return;}
   if(d.wknav){wkOff=Math.max(0,wkOff+Number(d.wknav));renderWeek();return;}
