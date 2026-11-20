@@ -498,7 +498,17 @@ function normalize(src){
 }
 // review-only mode works on whole surahs: parts of a surah are merged back into one (weakest level, earliest date)
 // «مراجعتي»: an ordered list of whole surahs (k:"s") and pages (k:"p") chosen by the person; d = last day reviewed
-function normRv(a){if(!Array.isArray(a))return [];const seen=new Set();return a.filter(x=>x&&(x.k==="s"&&x.n>=1&&x.n<=114||x.k==="p"&&x.n>=1&&x.n<=604)).map(x=>{const o={k:x.k,n:Math.round(Number(x.n))};if(/^\d{4}-\d\d-\d\d$/.test(x.d||""))o.d=x.d;return o;}).filter(x=>{const k=x.k+x.n;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,800);}
+// the last 8 ahzab are taken as 4 parts instead of their many short surahs
+const GRP=[[51,57,"جزء الذاريات"],[58,66,"جزء قد سمع"],[67,77,"جزء تبارك"],[78,114,"جزء عمّ"]];
+function grpOf(n){const i=GRP.findIndex(g=>n>=g[0]&&n<=g[1]);return i+1;}
+function unitOf(n){const g=grpOf(n);return g?{k:"g",n:g}:{k:"s",n};}
+function unitSur(u){return u.k==="g"?[GRP[u.n-1][0],GRP[u.n-1][1]]:[u.n,u.n];}
+function unitName(u){return u.k==="g"?GRP[u.n-1][2]:"سورة "+SURAHS[u.n-1][0];}
+function unitShort(u){return u.k==="g"?GRP[u.n-1][2]:SURAHS[u.n-1][0];}
+function unitKeys(u){const [a,b]=unitSur(u);let o=[];for(let n=a;n<=b;n++)o=o.concat(mistKeysIn(n,1,SURAHS[n-1][1]));return o;}
+function unitList(){const o=[];for(let n=1;n<51;n++)o.push({k:"s",n});for(let g=1;g<=4;g++)o.push({k:"g",n:g});return o;}
+function unitNum(u){return u.k==="g"?"ج":u.n;}
+function normRv(a){if(!Array.isArray(a))return [];const seen=new Set();return a.filter(x=>x&&(x.k==="s"&&x.n>=1&&x.n<=114||x.k==="p"&&x.n>=1&&x.n<=604||x.k==="g"&&x.n>=1&&x.n<=4)).map(x=>{const o=x.k==="s"?unitOf(Math.round(Number(x.n))):{k:x.k,n:Math.round(Number(x.n))};if(/^\d{4}-\d\d-\d\d$/.test(x.d||""))o.d=x.d;return o;}).filter(x=>{const k=x.k+x.n;if(seen.has(k))return false;seen.add(k);return true;}).slice(0,800);}
 function wholeSurahs(items){
   const by={}; for(const it of Object.values(items||{})) if(it&&it.s>=1&&it.s<=114)(by[it.s]=by[it.s]||[]).push(it);
   const out={};
@@ -879,8 +889,8 @@ document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest
 function surahsCardHTML(){
   return `<div class="card" style="margin-bottom:10px"><div style="font-weight:600">اختبر نفسك</div><div class="chips" style="margin:8px 0 0"><button class="chip" data-tstart="complete">أكمل الآية</button><button class="chip" data-tstart="where">أين هذه الآية؟</button><button class="chip" data-tstart="link">ربط الآيات</button></div></div>
   <details class="card" style="margin-bottom:10px" id="surDet" ${surOpen?"open":""}><summary style="font-weight:600;cursor:pointer">السور: المراجعة والأخطاء</summary>
-    <div class="list">${SURAHS.map((x,i)=>i+1).map(n=>{const ks=mistKeysIn(n,1,SURAHS[n-1][1]);const k="s"+n;const o=mOpen.has(k);
-      return `<div class="s" style="cursor:default"><div class="num">${n}</div><div class="grow"><div class="name">${SURAHS[n-1][0]}</div><div class="meta">${state.rv.some(x=>x.k==="s"&&x.n===n)?"في مراجعتي":""}</div></div>${ks.length?`<button class="mx-btn${o?" on":""}" data-mtog="${k}">⚠️ الأخطاء (${ks.length}) ${o?"▴":"▾"}</button>`:""}</div>${o?mistListHTML(ks,false):""}`;}).join("")}</div></details>`;
+    <div class="list">${unitList().map(u=>{const ks=unitKeys(u);const k=u.k+u.n;const o=mOpen.has(k);
+      return `<div class="s" style="cursor:default"><div class="num">${unitNum(u)}</div><div class="grow"><div class="name">${unitShort(u)}</div><div class="meta">${rvHas(u.k,u.n)?"في مراجعتي":""}</div></div>${ks.length?`<button class="mx-btn${o?" on":""}" data-mtog="${k}">⚠️ الأخطاء (${ks.length}) ${o?"▴":"▾"}</button>`:""}</div>${o?mistListHTML(ks,u.k==="g"):""}`;}).join("")}</div></details>`;
 }
 
 // ---- Mistakes shown as full ayat (huffaz mode): the words you got wrong in another colour, weak pages first ----
@@ -895,18 +905,18 @@ function mistListHTML(keys,withSurah){
     ${keys.map(k=>{const [x,a]=k.split(":").map(Number);const m=state.mistakes[k];const {words,num}=ayaParts(Q.t[x-1][a-1]);
       return `<button class="mx-aya" data-openaya="${x}:${a}"><span class="ml">${withSurah?esc(SURAHS[x-1][0])+" ":"الآية "}${a} · أخطأت ${errTxt(m.c)}</span><span class="mx-t">${words.map((w,i)=>m.w&&m.w[i]?`<span class="mxw">${esc(w)}</span>`:esc(w)).join(" ")} ${esc(num)}</span></button>`;}).join("")}</div>`;
 }
-function mistBtnHTML(key,keys){const o=mOpen.has(key);return `<button class="mx-btn${o?" on":""}" data-mtog="${key}">⚠️ الأخطاء (${ayatTxt(keys.length)}) ${o?"▴":"▾"}</button>`+(o?mistListHTML(keys,false):"");}
+function mistBtnHTML(key,keys){const o=mOpen.has(key);const multi=new Set(keys.map(k=>k.split(":")[0])).size>1;return `<button class="mx-btn${o?" on":""}" data-mtog="${key}">⚠️ الأخطاء (${ayatTxt(keys.length)}) ${o?"▴":"▾"}</button>`+(o?mistListHTML(keys,multi):"");}
 document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-mtog]");if(!t)return;e.stopPropagation();const k=t.dataset.mtog;if(mOpen.has(k))mOpen.delete(k);else mOpen.add(k);render();},true);
 
 // ---- «مراجعتي» (huffaz mode) ----
 function revOk(d){return HUF()?(state.log[d]||0)>0:(state.rH[d]||0)>=state.goalH*0.9;}
 function rvHas(k,n){return state.rv.some(x=>x.k===k&&x.n===n);}
-function rvAdd(k,n){if(rvHas(k,n)){toast("موجودة في مراجعتي من قبل");return;}state.rv.push({k,n});save();render();toast((k==="s"?"سورة "+SURAHS[n-1][0]:"صفحة "+n)+" أُضيفت إلى مراجعتي");}
+function rvAdd(k,n){if(rvHas(k,n)){toast("موجودة في مراجعتي من قبل");return;}state.rv.push({k,n});save();render();toast((k==="p"?"صفحة "+n:unitName({k,n}))+" أُضيفت إلى مراجعتي");}
 function rvPageRange(p){if(!PAGE_IDX)return null;const l=PAGE_IDX[p];if(!l||!l.length)return null;return {f:l[0],t:l[l.length-1]};}
-function rvTitle(x){if(x.k==="s")return "سورة "+SURAHS[x.n-1][0];return "صفحة "+x.n;}
-function rvSub(x){if(x.k==="s")return SURAHS[x.n-1][1]+" آية · "+fmtH(HIZB[x.n-1])+" حزب";const r=rvPageRange(x.n);if(!r)return "";const [s1,a1]=r.f,[s2,a2]=r.t;return s1===s2?"سورة "+SURAHS[s1-1][0]+" "+a1+"–"+a2:"سورة "+SURAHS[s1-1][0]+" "+a1+" – سورة "+SURAHS[s2-1][0]+" "+a2;}
-function rvSize(x){return x.k==="s"?HIZB[x.n-1]:60/604;}
-function rvMistKeys(x){if(x.k==="s")return mistKeysIn(x.n,1,SURAHS[x.n-1][1]);if(!PAGE_IDX)return [];return PAGE_IDX[x.n].map(([s0,a])=>s0+":"+a).filter(k=>state.mistakes[k]);}
+function rvTitle(x){if(x.k!=="p")return unitName(x);return "صفحة "+x.n;}
+function rvSub(x){if(x.k==="g"){const [a,b]=unitSur(x);let h=0;for(let n=a;n<=b;n++)h+=HIZB[n-1];return "من سورة "+SURAHS[a-1][0]+" إلى سورة "+SURAHS[b-1][0]+" · "+fmtH(h)+" حزب";}if(x.k==="s")return SURAHS[x.n-1][1]+" آية · "+fmtH(HIZB[x.n-1])+" حزب";const r=rvPageRange(x.n);if(!r)return "";const [s1,a1]=r.f,[s2,a2]=r.t;return s1===s2?"سورة "+SURAHS[s1-1][0]+" "+a1+"–"+a2:"سورة "+SURAHS[s1-1][0]+" "+a1+" – سورة "+SURAHS[s2-1][0]+" "+a2;}
+function rvSize(x){if(x.k==="p")return 60/604;const [a,b]=unitSur(x);let h=0;for(let n=a;n<=b;n++)h+=HIZB[n-1];return h;}
+function rvMistKeys(x){if(x.k!=="p")return unitKeys(x);if(!PAGE_IDX)return [];return PAGE_IDX[x.n].map(([s0,a])=>s0+":"+a).filter(k=>state.mistakes[k]);}
 function rvToggle(i){const x=state.rv[i];if(!x)return;const t=today();
   if(x.d===t){delete x.d;state.log[t]=Math.max(0,(state.log[t]||0)-1);if(!state.log[t])delete state.log[t];state.rH[t]=Math.max(0,(state.rH[t]||0)-rvSize(x));if(state.rH[t]<0.001)delete state.rH[t];}
   else {x.d=t;state.log[t]=(state.log[t]||0)+1;state.rH[t]=(state.rH[t]||0)+rvSize(x);pruneLog();}
@@ -919,44 +929,44 @@ function renderMyRev(){
   el.innerHTML=`<h2 class="page-t">مراجعتي</h2>
     ${L.length?`<p class="meta" style="margin:-6px 0 10px">${L.length===1?"عنصر واحد":L.length===2?"عنصران":L.length<=10?L.length+" عناصر":L.length+" عنصرًا"} · راجعت اليوم ${done} · رتّبها كما تريد بالأسهم</p>`:`<div class="card empty"><p class="meta">أضف ما تريد مراجعته: سورة كاملة أو صفحة. من هنا، أو من المصحف بزرّي «＋ الصفحة» و«＋ السورة».</p></div>`}
     ${L.map((x,i)=>{const ks=rvMistKeys(x);const dn=x.d===t;
-      return `<div class="item rv${dn?" rv-done":""}"><div class="top"><div class="num">${x.k==="s"?x.n:"ص"}</div>
+      return `<div class="item rv${dn?" rv-done":""}"><div class="top"><div class="num">${x.k==="p"?"ص":unitNum(x)}</div>
         <div class="grow"><div class="name">${rvTitle(x)}</div><div class="meta">${esc(rvSub(x))}</div><div class="meta">${rvDaysAgo(x)}</div></div>
         <div class="rv-ord"><button data-rvup="${i}" ${i===0?"disabled":""} aria-label="إلى الأعلى">▲</button><button data-rvdn="${i}" ${i===L.length-1?"disabled":""} aria-label="إلى الأسفل">▼</button></div></div>
         ${ks.length?mistBtnHTML("r"+x.k+x.n,ks):""}
         <div class="links"><button class="linkbtn" data-rvopen="${i}">📖 افتح في المصحف</button><button class="linkbtn" data-rvdel="${i}" style="color:var(--red)">✕ إزالة</button></div>
         <button class="btn${dn?" ghost":""} rv-chk" data-rvchk="${i}">${dn?"✓ راجعتها اليوم":"راجعتها"}</button></div>`;}).join("")}
     <div class="card" style="margin-top:14px"><div style="font-weight:600">إضافة</div>
-      <div class="seg-form" style="margin-top:8px"><select id="rvS" style="font:inherit;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--card);color:var(--ink);flex:1">${SURAHS.map((y,i)=>`<option value="${i+1}">${i+1}. ${y[0]}</option>`).join("")}</select><button class="btn" id="rvSAdd">＋ السورة</button></div>
+      <div class="seg-form" style="margin-top:8px"><select id="rvS" style="font:inherit;border:1px solid var(--line);border-radius:10px;padding:6px;background:var(--card);color:var(--ink);flex:1">${unitList().map(u=>`<option value="${u.k}${u.n}">${u.k==="s"?u.n+". "+SURAHS[u.n-1][0]:unitName(u)}</option>`).join("")}</select><button class="btn" id="rvSAdd">＋ أضف</button></div>
       <div class="seg-form" style="margin-top:8px"><label class="meta">صفحة <input type="number" id="rvP" min="1" max="604" placeholder="مثلًا 50"></label><button class="btn" id="rvPAdd">＋ الصفحة</button></div></div>`;
-  document.getElementById("rvSAdd").onclick=()=>rvAdd("s",Number(document.getElementById("rvS").value));
+  document.getElementById("rvSAdd").onclick=()=>{const v=document.getElementById("rvS").value;rvAdd(v[0],Number(v.slice(1)));};
   document.getElementById("rvPAdd").onclick=()=>{const p=Math.round(Number(document.getElementById("rvP").value));if(!(p>=1&&p<=604)){toast("أدخل رقم صفحة بين 1 و604");return;}rvAdd("p",p);};
 }
 function rvMushafHTML(){
   if(!PAGE_IDX||!PAGE_IDX[mPage]||!PAGE_IDX[mPage].length) return "";
   const sn=mSel?mSel.s:PAGE_IDX[mPage][0][0];
-  const hp=rvHas("p",mPage), hs=rvHas("s",sn);
-  return `<div class="chips rv-add"><span class="meta">مراجعتي:</span><button class="chip${hp?" on":""}" data-rvaddp="${mPage}">${hp?"✓":"＋"} الصفحة ${mPage}</button><button class="chip${hs?" on":""}" data-rvadds="${sn}">${hs?"✓":"＋"} سورة ${SURAHS[sn-1][0]}</button></div>`;
+  const u=unitOf(sn); const hp=rvHas("p",mPage), hs=rvHas(u.k,u.n);
+  return `<div class="chips rv-add"><span class="meta">مراجعتي:</span><button class="chip${hp?" on":""}" data-rvaddp="${mPage}">${hp?"✓":"＋"} الصفحة ${mPage}</button><button class="chip${hs?" on":""}" data-rvadds="${u.k}${u.n}">${hs?"✓":"＋"} ${unitName(u)}</button></div>`;
 }
 document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest("[data-rvup],[data-rvdn],[data-rvopen],[data-rvdel],[data-rvchk],[data-rvaddp],[data-rvadds]");if(!t)return;const d=t.dataset;
   if(d.rvaddp){const p=Number(d.rvaddp);if(rvHas("p",p)){state.rv=state.rv.filter(x=>!(x.k==="p"&&x.n===p));save();renderMushaf();toast("أُزيلت من مراجعتي");}else{state.rv.push({k:"p",n:p});save();renderMushaf();toast("صفحة "+p+" أُضيفت إلى مراجعتي");}return;}
-  if(d.rvadds){const n=Number(d.rvadds);if(rvHas("s",n)){state.rv=state.rv.filter(x=>!(x.k==="s"&&x.n===n));save();renderMushaf();toast("أُزيلت من مراجعتي");}else{state.rv.push({k:"s",n});save();renderMushaf();toast("سورة "+SURAHS[n-1][0]+" أُضيفت إلى مراجعتي");}return;}
+  if(d.rvadds){const k=d.rvadds[0],n=Number(d.rvadds.slice(1));if(rvHas(k,n)){state.rv=state.rv.filter(x=>!(x.k===k&&x.n===n));save();renderMushaf();toast("أُزيلت من مراجعتي");}else{state.rv.push({k,n});save();renderMushaf();toast(unitName({k,n})+" أُضيفت إلى مراجعتي");}return;}
   const i=Number(d.rvup??d.rvdn??d.rvopen??d.rvdel??d.rvchk); const L=state.rv; if(!L[i])return;
   if(d.rvup!==undefined&&i>0){[L[i-1],L[i]]=[L[i],L[i-1]];save();render();}
   else if(d.rvdn!==undefined&&i<L.length-1){[L[i+1],L[i]]=[L[i],L[i+1]];save();render();}
   else if(d.rvchk!==undefined){rvToggle(i);}
-  else if(d.rvopen!==undefined){const x=L[i];if(x.k==="s")openMushaf(x.n,1,SURAHS[x.n-1][1]);else loadQ().then(()=>{mPage=x.n;mHi=null;mSel=null;clearRev();setView("mushaf");window.scrollTo(0,0);}).catch(()=>toast("تعذّر تحميل المصحف"));}
+  else if(d.rvopen!==undefined){const x=L[i];if(x.k==="s")openMushaf(x.n,1,SURAHS[x.n-1][1]);else if(x.k==="g"){const a=unitSur(x)[0];openMushaf(a,1,SURAHS[a-1][1]);}else loadQ().then(()=>{mPage=x.n;mHi=null;mSel=null;clearRev();setView("mushaf");window.scrollTo(0,0);}).catch(()=>toast("تعذّر تحميل المصحف"));}
   else if(d.rvdel!==undefined){if(t.dataset.confirm){const x=L.splice(i,1)[0];save();render();toast(rvTitle(x)+" أُزيلت من مراجعتي");}else{t.dataset.confirm="1";t.textContent="✕ إزالة؟ اضغط مرة أخرى";setTimeout(()=>{if(t.isConnected){delete t.dataset.confirm;t.textContent="✕ إزالة";}},3000);}}
 });
 // today's summary at the top of the stats tab (huffaz mode has no «اليوم» tab)
 let focOpen=false, topOpen=false;
 // huffaz mode: surahs needing attention and most-missed ayat, folded until opened
 function hufTailHTML(){
-  const per={}; for(const [k,v] of Object.entries(state.mistakes)){const n=Number(k.split(":")[0]);per[n]=(per[n]||0)+(v.c||0);}
-  const sur=Object.entries(per).map(([n,c])=>[Number(n),c]).sort((x,y)=>y[1]-x[1]||x[0]-y[0]);
+  const per={}; for(const [k,v] of Object.entries(state.mistakes)){const u=unitOf(Number(k.split(":")[0]));const id=u.k+u.n;per[id]=(per[id]||0)+(v.c||0);}
+  const sur=Object.entries(per).map(([id,c])=>[{k:id[0],n:Number(id.slice(1))},c]).sort((x,y)=>y[1]-x[1]||(x[0].k+x[0].n).localeCompare(y[0].k+y[0].n));
   const top=Object.entries(state.mistakes).sort((x,y)=>y[1].c-x[1].c).slice(0,12).map(([k])=>k);
   return `<details class="card" style="margin-bottom:10px" id="focDet" ${focOpen?"open":""}><summary style="font-weight:600;cursor:pointer">سور تحتاج تركيزًا${sur.length?" ("+sur.length+")":""}</summary>
-    ${sur.length?`<div class="list">${sur.map(([n,c])=>{const ks=mistKeysIn(n,1,SURAHS[n-1][1]);const k="w"+n;const o=mOpen.has(k);
-      return `<div class="s" style="cursor:default"><div class="num">${n}</div><div class="grow"><div class="name">${SURAHS[n-1][0]}</div><div class="meta">أخطأت فيها ${errTxt(c)}${state.rv.some(x=>x.k==="s"&&x.n===n)?" · في مراجعتي":""}</div></div><button class="mx-btn${o?" on":""}" data-mtog="${k}">⚠️ الأخطاء (${ks.length}) ${o?"▴":"▾"}</button></div>${o?mistListHTML(ks,false):""}`;}).join("")}</div>`:`<p class="meta">لا أخطاء مسجّلة بعد 👍</p>`}</details>
+    ${sur.length?`<div class="list">${sur.map(([u,c])=>{const ks=unitKeys(u);const k="w"+u.k+u.n;const o=mOpen.has(k);
+      return `<div class="s" style="cursor:default"><div class="num">${unitNum(u)}</div><div class="grow"><div class="name">${unitShort(u)}</div><div class="meta">أخطأت فيها ${errTxt(c)}${rvHas(u.k,u.n)?" · في مراجعتي":""}</div></div><button class="mx-btn${o?" on":""}" data-mtog="${k}">⚠️ الأخطاء (${ks.length}) ${o?"▴":"▾"}</button></div>${o?mistListHTML(ks,u.k==="g"):""}`;}).join("")}</div>`:`<p class="meta">لا أخطاء مسجّلة بعد 👍</p>`}</details>
   <details class="card" style="margin-bottom:10px" id="topDet" ${topOpen?"open":""}><summary style="font-weight:600;cursor:pointer">آيات أخطأت فيها أكثر</summary>
     ${top.length?(topOpen?mistListHTML(top,true):""):`<p class="meta">لم تسجّل أي خطأ بعد. في المصحف، اضغط على الآية التي أخطأت فيها.</p>`}</details>`;
 }
