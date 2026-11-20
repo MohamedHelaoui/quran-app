@@ -781,7 +781,7 @@ function setMode(m){
   save(); render(); setView(m==="huffaz"?"stats":"today"); window.scrollTo(0,0);
   toast(m==="huffaz"?"وضع مراجعة الحفّاظ: اختر ما تراجعه في «مراجعتي»":"وضع الحفظ + المراجعة");
 }
-function applyModeUI(){const tb=document.querySelector('.tabbar button[data-v="today"] span'); if(tb) tb.textContent=HUF()?"مراجعتي":"اليوم";const b=document.querySelector('.tabbar button[data-v="list"] span'); if(b) b.textContent=HUF()?"المتشابهات":"حفظي";}
+function applyModeUI(){const nav=document.querySelector(".tabbar");if(nav){const order=HUF()?["stats","today","list","mushaf","khatma","adhkar"]:["today","list","mushaf","khatma","adhkar","stats"];const cur=[...nav.querySelectorAll("button[data-v]")].map(b=>b.dataset.v).join();if(cur!==order.join())order.forEach(v=>{const b=nav.querySelector(`button[data-v="${v}"]`);if(b)nav.appendChild(b);});}const tb=document.querySelector('.tabbar button[data-v="today"] span'); if(tb) tb.textContent=HUF()?"مراجعتي":"اليوم";const b=document.querySelector('.tabbar button[data-v="list"] span'); if(b) b.textContent=HUF()?"المتشابهات":"حفظي";}
 function renderModePicker(){
   const ex=document.getElementById("modePick");
   if(!modeReady||state.mode||document.getElementById("auth")){ if(ex) ex.remove(); return; }
