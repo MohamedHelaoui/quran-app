@@ -516,7 +516,9 @@ function normQada(q){if(!q||typeof q!=="object")return null;const n5=a=>Array.is
 // a mistake entry: wa = mistakes on the whole ayah, w = {wordIndex: count}; c = total
 function normMist(v){const w={};if(v.w&&typeof v.w==="object")for(const [i,n] of Object.entries(v.w)){const k=Math.round(Number(i)),c=Math.round(Number(n));if(k>=0&&k<200&&c>0)w[k]=c;}
   const wsum=Object.values(w).reduce((a,b)=>a+b,0); let wa=Number.isFinite(Number(v.wa))?Math.max(0,Math.round(Number(v.wa))):Math.max(0,Math.round(v.c)-wsum);
-  return {c:wa+wsum,wa,w,last:String(v.last||"")};}
+  const tot=wa+wsum; const c0=Math.round(Number(v.c)); const t0=Math.round(Number(v.t));
+  // c counts mistakes per ayah: several words marked in the same ayah on the same day count once
+  const o={c:c0>=1&&c0<=tot?c0:tot,wa,w,last:String(v.last||"")}; if(t0>0) o.t=Math.min(t0,tot); return o;}
 function normLoc(x){if(!x)return null;const s=Math.round(Number(x.s)),a=Math.round(Number(x.a));if(!(s>=1&&s<=114&&a>=1&&a<=SURAHS[s-1][1]))return null;const w=x.w===null||x.w===undefined?null:Math.round(Number(x.w));const ok=Number.isFinite(w)&&w>=0;const we=ok&&Number.isFinite(Number(x.we))&&Number(x.we)>w?Math.round(Number(x.we)):null;return we!==null?{s,a,w,we}:{s,a,w:ok?w:null};}
 function normGroup(g){if(!g||!Array.isArray(g.items))return null;const items=g.items.map(normLoc).filter(Boolean);if(items.length<2)return null;const o={id:String(g.id||("g"+Math.random().toString(36).slice(2,8))),items,note:String(g.note||"").slice(0,500)};if(Number.isFinite(Number(g.lv)))o.lv=Math.max(0,Math.min(8,Math.round(Number(g.lv))));if(/^\d{4}-\d\d-\d\d$/.test(g.due||""))o.due=g.due;return o;}
 function tsbDefault(){return [{id:"t1",t:"سُبْحَانَ اللَّهِ",n:33},{id:"t2",t:"الْحَمْدُ لِلَّهِ",n:33},{id:"t3",t:"اللَّهُ أَكْبَرُ",n:34},{id:"t4",t:"أَسْتَغْفِرُ اللَّهَ",n:100},{id:"t5",t:"اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى نَبِيِّنَا مُحَمَّدٍ",n:100}];}
@@ -980,9 +982,12 @@ function addMistakeLoc(l){const r=locRange(l);if(!r){addMistake(l.s,l.a,null);re
 function decMistakeLoc(l){const r=locRange(l);if(!r){decMistake(l.s,l.a,null);return;}for(let i=r[0];i<=r[1];i++)decMistake(l.s,l.a,i);}
 function clearMistakeLoc(l){const r=locRange(l);if(!r){clearMistake(l.s,l.a,null);return;}for(let i=r[0];i<=r[1];i++)clearMistake(l.s,l.a,i);}
 function mistCountLoc(l){const r=locRange(l);if(!r)return mistCount(l.s,l.a,null);let m=Infinity;for(let i=r[0];i<=r[1];i++)m=Math.min(m,mistCount(l.s,l.a,i));return m;}
-function addMistake(sn,a,w){const k=mKey(sn,a);const m=state.mistakes[k]||{c:0,wa:0,w:{},last:""};if(w===null||w===undefined)m.wa++;else m.w[w]=(m.w[w]||0)+1;m.c++;m.last=today();state.mistakes[k]=m;save();}
-function decMistake(sn,a,w){const k=mKey(sn,a);const m=state.mistakes[k];if(!m)return;if(w===null||w===undefined){if(m.wa>0){m.wa--;m.c--;}}else if(m.w[w]){m.w[w]--;m.c--;if(!m.w[w])delete m.w[w];}if(m.c<=0)delete state.mistakes[k];save();}
-function clearMistake(sn,a,w){const k=mKey(sn,a);const m=state.mistakes[k];if(!m)return;if(w===null||w===undefined){m.c-=m.wa;m.wa=0;}else if(m.w[w]){m.c-=m.w[w];delete m.w[w];}if(m.c<=0)delete state.mistakes[k];save();}
+function addMistake(sn,a,w){const k=mKey(sn,a);const m=state.mistakes[k]||{c:0,wa:0,w:{},last:""};if(w===null||w===undefined)m.wa++;else m.w[w]=(m.w[w]||0)+1;
+  if(m.last===today()&&m.t>0)m.t++;else{m.c++;m.t=1;}m.last=today();state.mistakes[k]=m;save();}
+// one mark less: the ayah's count drops only when no mark is left for that day
+function mistDrop(m,n){if(m.last===today()&&m.t>0){m.t=Math.max(0,m.t-n);if(!m.t)m.c--;}else m.c--;const left=m.wa+Object.values(m.w).reduce((x,y)=>x+y,0);if(left>0&&m.c<1)m.c=1;if(m.c>left)m.c=left;}
+function decMistake(sn,a,w){const k=mKey(sn,a);const m=state.mistakes[k];if(!m)return;if(w===null||w===undefined){if(m.wa>0){m.wa--;mistDrop(m,1);}}else if(m.w[w]){m.w[w]--;if(!m.w[w])delete m.w[w];mistDrop(m,1);}if(m.c<=0)delete state.mistakes[k];save();}
+function clearMistake(sn,a,w){const k=mKey(sn,a);const m=state.mistakes[k];if(!m)return;let n=0;if(w===null||w===undefined){n=m.wa;m.wa=0;}else if(m.w[w]){n=m.w[w];delete m.w[w];}if(n)mistDrop(m,n);if(m.c<=0)delete state.mistakes[k];save();}
 function mistCount(sn,a,w){const m=state.mistakes[mKey(sn,a)];if(!m)return 0;return w===null||w===undefined?m.wa:(m.w[w]||0);}
 // ---- Mutashabihat: groups of similar words or ayat ----
 function sameLoc(x,y){return x.s===y.s&&x.a===y.a&&(x.w??null)===(y.w??null)&&(x.we??null)===(y.we??null);}
