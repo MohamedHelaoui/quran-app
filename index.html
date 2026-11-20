@@ -948,6 +948,18 @@ document.addEventListener("click",e=>{const t=e.target.closest&&e.target.closest
   else if(d.rvdel!==undefined){if(t.dataset.confirm){const x=L.splice(i,1)[0];save();render();toast(rvTitle(x)+" أُزيلت من مراجعتي");}else{t.dataset.confirm="1";t.textContent="✕ إزالة؟ اضغط مرة أخرى";setTimeout(()=>{if(t.isConnected){delete t.dataset.confirm;t.textContent="✕ إزالة";}},3000);}}
 });
 // today's summary at the top of the stats tab (huffaz mode has no «اليوم» tab)
+let focOpen=false, topOpen=false;
+// huffaz mode: surahs needing attention and most-missed ayat, folded until opened
+function hufTailHTML(){
+  const per={}; for(const [k,v] of Object.entries(state.mistakes)){const n=Number(k.split(":")[0]);per[n]=(per[n]||0)+(v.c||0);}
+  const sur=Object.entries(per).map(([n,c])=>[Number(n),c]).sort((x,y)=>y[1]-x[1]||x[0]-y[0]);
+  const top=Object.entries(state.mistakes).sort((x,y)=>y[1].c-x[1].c).slice(0,12).map(([k])=>k);
+  return `<details class="card" style="margin-bottom:10px" id="focDet" ${focOpen?"open":""}><summary style="font-weight:600;cursor:pointer">سور تحتاج تركيزًا${sur.length?" ("+sur.length+")":""}</summary>
+    ${sur.length?`<div class="list">${sur.map(([n,c])=>{const ks=mistKeysIn(n,1,SURAHS[n-1][1]);const k="w"+n;const o=mOpen.has(k);
+      return `<div class="s" style="cursor:default"><div class="num">${n}</div><div class="grow"><div class="name">${SURAHS[n-1][0]}</div><div class="meta">أخطأت فيها ${errTxt(c)}${state.rv.some(x=>x.k==="s"&&x.n===n)?" · في مراجعتي":""}</div></div><button class="mx-btn${o?" on":""}" data-mtog="${k}">⚠️ الأخطاء (${ks.length}) ${o?"▴":"▾"}</button></div>${o?mistListHTML(ks,false):""}`;}).join("")}</div>`:`<p class="meta">لا أخطاء مسجّلة بعد 👍</p>`}</details>
+  <details class="card" style="margin-bottom:10px" id="topDet" ${topOpen?"open":""}><summary style="font-weight:600;cursor:pointer">آيات أخطأت فيها أكثر</summary>
+    ${top.length?(topOpen?mistListHTML(top,true):""):`<p class="meta">لم تسجّل أي خطأ بعد. في المصحف، اضغط على الآية التي أخطأت فيها.</p>`}</details>`;
+}
 function todaySummaryHTML(){
   const t=today(); const tasks=[]; const L=state.rv;
   if(L.length){const dn=L.filter(x=>x.d===t).length;tasks.push({n:"مراجعتي",ok:dn>0,v:dn+" / "+L.length,act:'data-go="today"'});}
@@ -964,7 +976,7 @@ function todaySummaryHTML(){
         <use href="#octa" class="st-o" fill="none" stroke="var(--indigo-2)" stroke-width="2"/><rect x="29" y="29" width="42" height="42" fill="none" stroke="var(--indigo-2)" stroke-opacity=".25" transform="rotate(45 50 50)"/></svg>
         <div class="pct">${okN}/${tasks.length}</div></div>
       <ul class="tasks">${tasks.map(x=>`<li class="${x.ok?"ok":""}"><button ${x.act}><span class="dot">${x.ok?"✓":""}</span><span class="t">${x.n}</span><span class="v">${x.v}</span></button></li>`).join("")}</ul>
-    </div></div>`+prayerStripHTML();
+    </div></div>`;
 }
 
 // ---- Memorization plan ----
@@ -1806,7 +1818,7 @@ function renderStats(){
   const days=[];for(let i=13;i>=0;i--){const d=addDays(today(),-i);days.push([d,state.log[d]||0]);}
   const mx=Math.max(1,...days.map(d=>d[1]));
   const wkH=[0,1,2,3,4,5,6].reduce((a,i)=>a+(state.rH[addDays(today(),-i)]||0),0);
-  el.innerHTML=(HUF()?todaySummaryHTML():"")+`<button class="wk-entry" data-go="week"><span><b>الملخّص الأسبوعي</b><span class="meta" style="display:block">ما أنجزته في آخر 7 أيام وما تركّز عليه</span></span><span aria-hidden="true">‹</span></button>`+calendarCard()+(HUF()?surahsCardHTML():"")+habitsCard()+`<div class="stats">
+  el.innerHTML=(HUF()?todaySummaryHTML():"")+`<button class="wk-entry" data-go="week"><span><b>الملخّص الأسبوعي</b><span class="meta" style="display:block">ما أنجزته في آخر 7 أيام وما تركّز عليه</span></span><span aria-hidden="true">‹</span></button>`+calendarCard()+(HUF()?surahsCardHTML():"")+habitsCard()+(HUF()?hufTailHTML():`<div class="stats">
       ${HUF()?`<div class="card stat"><div class="v">${fmtH(wkH)}</div><div class="k">حزبًا راجعتها في آخر 7 أيام</div></div>
       <div class="card stat"><div class="v">${state.rv.length}</div><div class="k">في «مراجعتي»</div></div>`:`<div class="card stat"><div class="v">${full}<span style="font-size:18px"> / 114</span></div><div class="k">سورة محفوظة كاملة${part?" + "+part+" جزئيًا":""}</div></div>
       <div class="card stat"><div class="v">${fmtH(ahzab)}<span style="font-size:18px"> / 60</span></div><div class="k">حزبًا محفوظًا (تقريبًا)</div></div>`}
@@ -1822,8 +1834,9 @@ function renderStats(){
       ${(()=>{const top=Object.entries(state.mistakes).map(([k,v])=>{const [sn,a]=k.split(":").map(Number);return {sn,a,c:v.c};}).sort((x,y)=>y.c-x.c||x.sn-y.sn||x.a-y.a).slice(0,12);
         if(HUF()&&top.length) return mistListHTML(top.map(m=>m.sn+":"+m.a),true);
         return top.length?`<div class="mist" style="color:var(--ink)">${top.map(m=>`<button class="chip" data-openaya="${m.sn}:${m.a}">${SURAHS[m.sn-1][0]} ${m.a} · ${errTxt(m.c)}</button>`).join("")}</div>`:`<p class="meta" style="margin:6px 0 0">لم تسجّل أي خطأ بعد. في المصحف، اضغط على الآية التي أخطأت فيها.</p>`;})()}</div>
-    </div>`;
+    </div>`);
   {const sd=document.getElementById("surDet");if(sd)sd.ontoggle=()=>{surOpen=sd.open;};}
+  {const a=document.getElementById("focDet");if(a)a.ontoggle=()=>{focOpen=a.open;};const b=document.getElementById("topDet");if(b)b.ontoggle=()=>{const was=topOpen;topOpen=b.open;if(was!==topOpen)renderStats();};}
   document.getElementById("hAdd").onclick=()=>{const v=document.getElementById("hNew").value.trim();if(!v)return;state.habits.push({id:"h"+Date.now().toString(36),n:v.slice(0,40)});save();renderStats();toast("أُضيفت العادة: "+v);};
   document.getElementById("hNew").onkeydown=e=>{if(e.key==="Enter")document.getElementById("hAdd").click();};
 }
