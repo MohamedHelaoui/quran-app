@@ -374,6 +374,7 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .mode-opt b{display:block;font-size:18px;color:var(--indigo-2)}
 .mode-opt span{display:block;font-size:13px;color:var(--muted);margin-top:4px;line-height:1.7}
 .mode-opt:hover,.mode-opt:focus-visible{border-color:var(--gold-leaf);outline:0}
+.seg-mode .aya{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 </style>
 </head>
 <body>
@@ -1726,7 +1727,7 @@ function saveNoteFrom(id){
 
 // ---- Mushaf (Qalun, KFGQPC text) ----
 let mSel=null;
-let Q=null, qLoading=null, PAGE_IDX=null, mPage=1, mHi=null, mMode=0, revealed=new Map(), mScroll=false, mUnit="aya", linkFrom=null, linkTo=null, selAnchor=null, noteEdit=false;
+let Q=null, qLoading=null, PAGE_IDX=null, mPage=1, mHi=null, mMode=0, revealed=new Map(), revSeg=new Map(), mScroll=false, mUnit="aya", linkFrom=null, linkTo=null, selAnchor=null, noteEdit=false;
 function loadQ(){
   if(Q) return Promise.resolve(Q);
   if(!qLoading) qLoading=fetch("qaloon.json").then(r=>{if(!r.ok)throw new Error("http");return r.json();}).then(d=>{
@@ -1738,18 +1739,54 @@ function loadQ(){
 }
 function setView(v){const changed=view!==v;view=v;document.querySelectorAll(".tabbar button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));document.querySelectorAll(".icon-btn[data-go=settings]").forEach(x=>x.classList.toggle("on",v==="settings"));render();if(changed)window.scrollTo(0,0);}
 function openMushaf(sn,from,to){
-  loadQ().then(()=>{mPage=Q.p[sn-1][from-1];mHi={s:sn,from,to};revealed.clear();mScroll=true;setView("mushaf");window.scrollTo(0,0);})
+  loadQ().then(()=>{mPage=Q.p[sn-1][from-1];mHi={s:sn,from,to};clearRev();mScroll=true;setView("mushaf");window.scrollTo(0,0);})
   .catch(()=>toast("تعذّر تحميل المصحف"));
 }
-function goLoc(loc){loadQ().then(()=>{mPage=Q.p[loc.s-1][loc.a-1];mHi=null;mSel=loc;noteEdit=false;revealed.clear();mScroll=true;setView("mushaf");}).catch(()=>toast("تعذّر تحميل المصحف"));}
-function goPage(pg){pg=Math.min(604,Math.max(1,Math.round(Number(pg)||1)));if(pg!==mPage){mPage=pg;revealed.clear();mSel=null;selAnchor=null;}renderMushaf();}
+function goLoc(loc){loadQ().then(()=>{mPage=Q.p[loc.s-1][loc.a-1];mHi=null;mSel=loc;noteEdit=false;clearRev();mScroll=true;setView("mushaf");}).catch(()=>toast("تعذّر تحميل المصحف"));}
+function goPage(pg){pg=Math.min(604,Math.max(1,Math.round(Number(pg)||1)));if(pg!==mPage){mPage=pg;clearRev();mSel=null;selAnchor=null;}renderMushaf();}
+function clearRev(){revealed.clear();revSeg.clear();}
+// Review-only mode + hide view: an ayah is revealed one phrase at a time, each phrase ending at a waqf sign (U+06D6) or at the end of the ayah
+function segMode(){return HUF()&&mMode===2;}
+function waqfSegs(sn,a){const words=ayaParts(Q.t[sn-1][a-1]).words;const out=[];let st=0;words.forEach((w,i)=>{if(w.includes("\u06D6")||i===words.length-1){out.push([st,i]);st=i+1;}});return out;}
+function segTap(sn,a,w){
+  const k=sn+":"+a; const sa=waqfSegs(sn,a); let set=revSeg.get(k); if(!set){set=new Set();revSeg.set(k,set);}
+  const idx=w===null?-1:sa.findIndex(([x,y])=>w>=x&&w<=y);
+  if(idx>=0&&set.has(idx)) set.delete(idx);                       // a visible phrase: hide it again
+  else {const nx=sa.findIndex((_,i)=>!set.has(i)); if(nx>=0) set.add(nx);}  // otherwise: show the next phrase
+  renderMushaf();
+}
+// long press on a word: show its phrase and select the word (panel: error, similar places)
+function lpSelect(sn,a,w){
+  const k=sn+":"+a; const sa=waqfSegs(sn,a); let set=revSeg.get(k); if(!set){set=new Set();revSeg.set(k,set);}
+  const idx=sa.findIndex(([x,y])=>w>=x&&w<=y); if(idx>=0) set.add(idx);
+  const cur=mSel; let n;
+  if(cur&&cur.s===sn&&cur.a===a&&cur.w!==null&&selAnchor!==null){
+    if(w===selAnchor&&(cur.we??cur.w)===cur.w) n=null;
+    else if(w===selAnchor) n={s:sn,a,w};
+    else {const lo=Math.min(selAnchor,w),hi=Math.max(selAnchor,w); n={s:sn,a,w:lo,we:hi};}
+  } else {selAnchor=w; n={s:sn,a,w};}
+  mSel=n; if(!n) selAnchor=null; noteEdit=false; renderMushaf();
+}
+let lpT=null,lpX=0,lpY=0,suppressClick=false;
+document.addEventListener("pointerdown",e=>{
+  if(!segMode()||linkFrom||!e.target.closest) return;
+  const w=e.target.closest("[data-w]"), ay=e.target.closest("[data-aya]"); if(!w||!ay) return;
+  lpX=e.clientX; lpY=e.clientY; clearTimeout(lpT);
+  const [sn,a]=ay.dataset.aya.split(":").map(Number), wi=Number(w.dataset.w);
+  lpT=setTimeout(()=>{lpT=null;suppressClick=true;try{navigator.vibrate&&navigator.vibrate(15);}catch(_){}lpSelect(sn,a,wi);},450);
+});
+document.addEventListener("pointermove",e=>{if(lpT&&Math.hypot(e.clientX-lpX,e.clientY-lpY)>10){clearTimeout(lpT);lpT=null;}});
+["pointerup","pointercancel"].forEach(ev=>document.addEventListener(ev,()=>{clearTimeout(lpT);lpT=null;if(suppressClick)setTimeout(()=>{suppressClick=false;},400);}));
+document.addEventListener("scroll",()=>{clearTimeout(lpT);lpT=null;},true);
+document.addEventListener("contextmenu",e=>{if(e.target.closest&&e.target.closest(".seg-mode"))e.preventDefault();});
 function ayaParts(txt){const m=txt.match(/^([\s\S]*?)(\u00a0[\u0660-\u0669]+)$/);const body=m?m[1]:txt;return {words:body.split(" "),num:m?m[2]:""};}
 // how many words of an ayah are shown in the current mode
 function shownWords(sn,a,len){const k=sn+":"+a;if(revealed.has(k))return Math.min(len,revealed.get(k));return mMode===2?0:mMode===1?1:len;}
 function ayaHTML(sn,a){
   const {words,num}=ayaParts(Q.t[sn-1][a-1]); const shown=shownWords(sn,a,words.length);
-  const m=state.mistakes[sn+":"+a]; const ms=mshOnAya(sn,a); const hiding=shown<words.length;
-  let h=words.map((w,i)=>{const cls=["w"];if(i>=shown)cls.push("hw");else{if(m&&m.w[i])cls.push(m.w[i]>=3?"werr2":"werr");if(ms.words.has(i))cls.push("wmsh");const inR=(l)=>l&&l.s===sn&&l.a===a&&l.w!==null&&i>=l.w&&i<=(l.we??l.w);if(inR(mSel))cls.push("wsel");if(inR(linkFrom))cls.push("wlink");if(inR(linkTo))cls.push("wsel");}
+  const SG=segMode(); let vis=null; if(SG){const sa=waqfSegs(sn,a),rs=revSeg.get(sn+":"+a)||new Set();vis=new Array(words.length).fill(false);sa.forEach(([x,y],j)=>{if(rs.has(j))for(let i=x;i<=y;i++)vis[i]=true;});}
+  const m=state.mistakes[sn+":"+a]; const ms=mshOnAya(sn,a); const hiding=SG?vis.some(v=>!v):shown<words.length;
+  let h=words.map((w,i)=>{const cls=["w"];if(SG?!vis[i]:i>=shown)cls.push("hw");else{if(m&&m.w[i])cls.push(m.w[i]>=3?"werr2":"werr");if(ms.words.has(i))cls.push("wmsh");const inR=(l)=>l&&l.s===sn&&l.a===a&&l.w!==null&&i>=l.w&&i<=(l.we??l.w);if(inR(mSel))cls.push("wsel");if(inR(linkFrom))cls.push("wlink");if(inR(linkTo))cls.push("wsel");}
     return `<span class="${cls.join(" ")}" data-w="${i}">${esc(w)}</span>`;}).join(" ");
   const hasM=ms.aya||ms.words.size;
   return {html:h+`<span class="anum" data-anum="1">${esc(num)}</span>`+(hasM?`<button class="msh-mark" data-mshaya="${sn}:${a}" aria-label="متشابهات هذه الآية">≈</button>`:""),hiding};
@@ -1784,11 +1821,11 @@ function renderMushaf(){
       <div class="seg-ctl" role="group" aria-label="طريقة العرض">${["عرض","أول كلمة","إخفاء"].map((x,i)=>`<button data-mmode="${i}" class="${mMode===i?"on":""}">${x}</button>`).join("")}</div>
 
     </div>
-    <p class="help" style="margin-top:-4px">${linkFrom?"":mMode===0?"اضغط على كلمة لتحديدها، أو على رقم الآية لتحديد الآية كاملة: ثم سجّل خطأً أو اربطها بموضع مشابه.":"اقرأ من حفظك، والضغط على الآية يُظهرها كاملة."+" بعد ظهورها كاملة، اضغط على كلمة أو على رقم الآية لتسجيل خطأ."}</p>
+    <p class="help" style="margin-top:-4px">${linkFrom?"":segMode()?"اضغط على الآية لتظهر جملة جملة (عند كل وقف)، واضغط على جملة ظاهرة لإخفائها. اضغط مطوّلًا على كلمة لتحديدها: تسجيل خطأ أو متشابهات.":mMode===0?"اضغط على كلمة لتحديدها، أو على رقم الآية لتحديد الآية كاملة: ثم سجّل خطأً أو اربطها بموضع مشابه.":"اقرأ من حفظك، والضغط على الآية يُظهرها كاملة."+" بعد ظهورها كاملة، اضغط على كلمة أو على رقم الآية لتسجيل خطأ."}</p>
     ${linkFrom?`<div class="link-banner"><div style="min-width:0"><b>اختر الموضع المشابه</b><div class="meta" style="color:inherit;opacity:.85">${linkTo?"المختار: "+esc(locLabel(linkTo))+(linkTo.w!==null?" · اضغط كلمة أخرى في الآية لتوسيع العبارة":""):"من "+esc(locLabel(linkFrom))+" · اذهب إلى أي صفحة واضغط على الكلمة، أو على رقم الآية"}</div></div>
       <div style="display:flex;gap:6px;flex:none">${linkTo?`<button class="btn" id="linkOk" style="background:var(--gold-leaf);color:#0d1230">ربط</button>`:""}<button class="btn ghost" id="linkCancel">إلغاء</button></div></div>`:""}
     ${searchPanelHTML()}
-    <div class="mushaf">${body}
+    <div class="mushaf${segMode()?" seg-mode":""}">${body}
       <div class="m-foot"><button class="btn ghost" id="mPrev" ${mPage<=1?"disabled":""}>→ السابقة</button><span>${mPage}</span><button class="btn ghost" id="mNext" ${mPage>=604?"disabled":""}>التالية ←</button></div>
     </div>
     ${mHi?`<p class="help" style="text-align:center">المقطع المظلّل: سورة ${SURAHS[mHi.s-1][0]}، الآيات ${mHi.from}–${mHi.to} <button class="linkbtn" id="mClearHi">إزالة التظليل</button></p>`:""}
@@ -1806,7 +1843,7 @@ function renderMushaf(){
           ${noteEdit?`<textarea id="gNote" rows="2" placeholder="كيف تفرّق بينها؟">${esc(g.note)}</textarea><div class="bar-acts"><button class="btn sm" id="gNoteSave">حفظ الملاحظة</button><button class="linkbtn sm" id="gNoteCancel">إلغاء</button></div>`
             :`${g.note?`<div class="note" style="margin-top:4px">📝 ${esc(g.note)}</div>`:""}<div class="bar-acts"><button class="linkbtn sm" id="gNoteBtn">${g.note?"تعديل الملاحظة":"＋ ملاحظة للتفريق"}</button><button class="linkbtn sm" id="mshDel" style="color:var(--red)">إزالة من المتشابهات</button></div>`}</div>`:""}</div>`;})():""}
     <p class="src" id="mSrc">رواية قالون عن نافع · النص والخط من مجمع الملك فهد لطباعة المصحف الشريف (الإصدار 10)</p>`;
-  document.getElementById("mSura").onchange=e=>{const sn=Number(e.target.value);mPage=Q.p[sn-1][0];revealed.clear();mSel=null;renderMushaf();};
+  document.getElementById("mSura").onchange=e=>{const sn=Number(e.target.value);mPage=Q.p[sn-1][0];clearRev();mSel=null;renderMushaf();};
   document.getElementById("mPg").onchange=e=>goPage(e.target.value);
   document.getElementById("mSrchBtn").onclick=()=>{mSearch.open=!mSearch.open;renderMushaf();const i=document.getElementById("sQ");if(i)i.focus();};
   bindSearch();
@@ -1823,7 +1860,7 @@ function renderMushaf(){
     document.getElementById("selAdd").onclick=()=>{addMistakeLoc(S);toast(S.w===null?"سُجّل الخطأ في الآية "+S.a:(S.we!==undefined&&S.we!==null?"سُجّل الخطأ في العبارة":"سُجّل الخطأ في الكلمة"));renderMushaf();};
     const dd=document.getElementById("selDec"); if(dd) dd.onclick=()=>{decMistakeLoc(S);renderMushaf();};
     const cl=document.getElementById("selClr"); if(cl) cl.onclick=()=>{clearMistakeLoc(S);toast("أُزيلت العلامة");renderMushaf();};
-    document.getElementById("mshAdd").onclick=()=>{linkFrom=cleanLoc(S);linkTo=null;mSel=null;selAnchor=null;noteEdit=false;if(mMode){mMode=0;revealed.clear();}renderMushaf();};
+    document.getElementById("mshAdd").onclick=()=>{linkFrom=cleanLoc(S);linkTo=null;mSel=null;selAnchor=null;noteEdit=false;if(mMode){mMode=0;clearRev();}renderMushaf();};
     const nb=document.getElementById("gNoteBtn"); if(nb) nb.onclick=()=>{noteEdit=true;renderMushaf();const t=document.getElementById("gNote");if(t)t.focus();};
     const ns=document.getElementById("gNoteSave"); if(ns) ns.onclick=()=>{const g=groupOf(S);if(g){g.note=document.getElementById("gNote").value.trim().slice(0,500);save();}noteEdit=false;renderMushaf();};
     const ob=document.getElementById("occBtn"); if(ob) ob.onclick=()=>{const O=occFor(S);O.open=!O.open;renderMushaf();};
@@ -1946,12 +1983,12 @@ document.addEventListener("click",e=>{
   if(d.cal){calSel=calSel===d.cal?null:d.cal;renderStats();return;}
   if(d.calnav!==undefined){const k=Number(d.calnav);if(k===0){const [y,m]=today().split("-").map(Number);calYM=[y,m];}else{let [y,m]=calYM;m+=k;if(m<1){m=12;y--;}if(m>12){m=1;y++;}calYM=[y,m];}calSel=null;renderStats();return;}
   if(d.scroll){const el=document.getElementById(d.scroll);if(el)el.scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",block:"start"});return;}
-  if(d.mmode!==undefined){mMode=Number(d.mmode);revealed.clear();mSel=null;renderMushaf();return;}
+  if(d.mmode!==undefined){mMode=Number(d.mmode);clearRev();mSel=null;renderMushaf();return;}
   if(d.backup){doBackup();return;}
   if(d.restore){if(d.restore==="yes"&&pendingRestore){state=pendingRestore;pendingRestore=null;save();render();setView("today");toast("استُرجعت البيانات");}else{pendingRestore=null;const b=document.getElementById("restoreBox");if(b){b.className="hidden";b.innerHTML="";}}return;}
   if(d.newtog){const it=state.items[d.newtog];if(it){if(it.newAt){delete it.newAt;toast("أُزيل من المراجعة القريبة");}else{it.newAt=addDays(today(),-1);toast("سيُراجَع يوميًا لمدة "+daysTxt(state.recent.days));}save();render();}return;}
   if(d.khd){khDays=Number(d.khd);renderKhatma();return;}
-  if(d.khopen){const pgn=Number(d.khopen);loadQ().then(()=>{mPage=pgn;mHi=null;mSel=null;revealed.clear();setView("mushaf");window.scrollTo(0,0);}).catch(()=>toast("تعذّر تحميل المصحف"));return;}
+  if(d.khopen){const pgn=Number(d.khopen);loadQ().then(()=>{mPage=pgn;mHi=null;mSel=null;clearRev();setView("mushaf");window.scrollTo(0,0);}).catch(()=>toast("تعذّر تحميل المصحف"));return;}
   if(d.htog){toggleHabit(d.htog,d.hd);renderStats();return;}
   if(d.hdel){if(t.dataset.confirm){state.habits=state.habits.filter(h=>h.id!==d.hdel);save();renderStats();toast("حُذفت العادة");}else{t.dataset.confirm="1";t.textContent="حذف؟";t.style.color="var(--red)";setTimeout(()=>{if(t.isConnected){delete t.dataset.confirm;t.textContent="✕";t.style.color="var(--muted)";}},3000);}return;}
   if(d.goadh){adhCat=d.goadh;setView("adhkar");window.scrollTo(0,0);return;}
@@ -1963,6 +2000,7 @@ document.addEventListener("click",e=>{
   if(d.splith){splitBySize(d.splith,document.getElementById("splitH").value);return;}
   if(d.merge){mergeSurah(Number(d.merge));return;}
   if(d.aya){ const [sn,a]=d.aya.split(":").map(Number);
+    if(segMode()&&!linkFrom){ if(suppressClick){suppressClick=false;return;} const w0=e.target.closest("[data-w]"); if(!e.target.closest("[data-anum]")||t.classList.contains("hiding")){ segTap(sn,a,w0?Number(w0.dataset.w):null); return; } }
     if(t.classList.contains("hiding")){ const len=ayaParts(Q.t[sn-1][a-1]).words.length; const cur=shownWords(sn,a,len); revealed.set(d.aya,mUnit==="aya"?len:cur+1); renderMushaf(); return; }
     const wEl=e.target.closest("[data-w]"); const w=wEl?Number(wEl.dataset.w):null;
     // picking a word extends the current pick to a phrase when it is in the same ayah
@@ -1973,7 +2011,7 @@ document.addEventListener("click",e=>{
     const n=pick(mSel); if(!n||w===null) selAnchor=w===null?null:selAnchor; mSel=n; if(!n) selAnchor=null; noteEdit=false; renderMushaf(); return; }
   if(d.goloc){const [sn,a,w,we]=d.goloc.split(":");const l={s:+sn,a:+a,w:w===""?null:+w};if(we!==undefined&&we!=="")l.we=+we;selAnchor=null;goLoc(l);return;}
   if(d.munit){mUnit=d.munit;renderMushaf();return;}
-  if(d.openaya){const [sn,a]=d.openaya.split(":").map(Number);loadQ().then(()=>{mPage=Q.p[sn-1][a-1];mHi=null;mSel={s:sn,a,w:null};revealed.clear();mScroll=true;setView("mushaf");}).catch(()=>toast("تعذّر تحميل المصحف"));return;}
+  if(d.openaya){const [sn,a]=d.openaya.split(":").map(Number);loadQ().then(()=>{mPage=Q.p[sn-1][a-1];mHi=null;mSel={s:sn,a,w:null};clearRev();mScroll=true;setView("mushaf");}).catch(()=>toast("تعذّر تحميل المصحف"));return;}
   if(d.open){const it=state.items[d.open];if(it)openMushaf(it.s,it.from,it.to);return;}
   if(d.rate){rate(d.id,d.rate);}
   else if(d.edit){const n=Number(d.edit);openEdit=openEdit===n?null:n;renderList();}
