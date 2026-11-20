@@ -43,3 +43,10 @@ python3 tools/build_themes.py ayah_theme.sqlite themes.json
 ```
 
 بدون `themes.json` لا يظهر شيء. عند تغييره ارفع `VERSION` في `sw.js`.
+
+## معاني المفردات والإعراب والجلالين
+عند تحديد آية في المصحف يظهر زر «📖 تفسير» بثلاثة تبويبات: معاني المفردات («الميسر في الغريب») والإعراب («الإعراب الميسر») وتفسير الجلالين. الملفات في `tf/<رقم السورة>.json` بترقيم قالون، وتُحمَّل عند الحاجة فقط ثم تُحفظ للاستعمال دون اتصال. المصدر: [spa5k/tafsir_api](https://github.com/spa5k/tafsir_api) (رخصة MIT) عبر QUL/Tarteel. لإعادة بنائها:
+
+```
+python3 tools/build_tafsir.py PATH/TO/tafsir_api/tafsir tf
+```

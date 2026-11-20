@@ -252,9 +252,14 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .thsec[data-th="5"],.th-chip[data-th="5"]{--thc:hsl(12 70% 56%)}
 .thsec[data-th="6"],.th-chip[data-th="6"]{--thc:hsl(180 55% 42%)}
 .thsec[data-th="7"],.th-chip[data-th="7"]{--thc:hsl(55 75% 48%)}
+.tf-box{margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+.tf-box .seg-ctl{display:flex;margin-bottom:8px}.tf-box .seg-ctl button{flex:1}
+.tf-txt{font-size:15.5px;line-height:1.95;max-height:280px;overflow:auto;padding-inline-end:4px}
+.tf-txt p{margin:0 0 8px}.tf-txt b{color:var(--green);font-weight:600}
+.tf-note{font-size:12.5px;opacity:.75;margin:0 0 6px}
 .th-leg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .th-chip{font-size:12.5px;line-height:1.5;padding:3px 10px;border-radius:12px;display:inline-flex;gap:6px;align-items:baseline;background:color-mix(in srgb,var(--thc) 15%,transparent);border:1px solid color-mix(in srgb,var(--thc) 40%,transparent);color:var(--ink)}
-.th-chip i{font-style:normal;opacity:.7;flex:none;white-space:nowrap}
+.th-chip i{font-style:normal;opacity:.7;flex:none;white-space:nowrap;direction:ltr;unicode-bidi:isolate}
 .th-chip span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .aya.hi{background:var(--gold-soft);box-shadow:0 0 0 3px var(--gold-soft)}
 .aya.err{text-decoration:underline wavy var(--red);text-decoration-thickness:1.5px;text-underline-offset:10px;background:var(--red-soft)}
@@ -1995,6 +2000,28 @@ function saveNoteFrom(id){
 
 // ---- Mushaf (Qalun, KFGQPC text) ----
 let mSel=null;
+let tfOpen=false, tfTab="j", TF=new Map();
+function tfLoad(s){
+  if(TF.has(s)) return;
+  TF.set(s,"loading");
+  fetch("tf/"+s+".json").then(r=>{if(!r.ok)throw new Error("http");return r.json();}).then(d=>{TF.set(s,d);}).catch(()=>{TF.set(s,null);}).then(()=>{if(view==="mushaf"&&tfOpen&&mSel&&mSel.s===s)renderMushaf();});
+}
+function tfFmt(t){return String(t).split(/\n{2,}/).map(x=>"<p>"+esc(x).replace(/\n/g," ").replace(/(﴿[^﴾]*﴾)/g,"<b>$1</b>")+"</p>").join("");}
+function tfBoxHTML(L){
+  if(!tfOpen) return "";
+  tfLoad(L.s); const d=TF.get(L.s);
+  const tabs=[["m","معاني المفردات"],["i","إعراب"],["j","الجلالين"]];
+  const head=`<div class="seg-ctl" role="group" aria-label="التفسير">${tabs.map(([k,n])=>`<button data-tftab="${k}" class="${tfTab===k?"on":""}">${n}</button>`).join("")}</div>`;
+  let body;
+  if(d==="loading"||d===undefined) body=`<p class="help">جارٍ التحميل…</p>`;
+  else if(d===null) body=`<p class="help">تعذّر التحميل، ويحتاج اتصالًا بالإنترنت في المرة الأولى.</p>`;
+  else{
+    const r=d[String(L.a)]||{}; let txt=r[tfTab], note="";
+    if(!txt&&tfTab==="j"&&r.jp&&d[String(r.jp)]&&d[String(r.jp)].j){txt=d[String(r.jp)].j;note=`<p class="tf-note">هذه الآية مشروحة ضمن تفسير الآية ${r.jp}.</p>`;}
+    body=txt?note+`<div class="tf-txt">${tfFmt(txt)}</div>`:`<p class="help">${tfTab==="m"?"لا توجد كلمات غريبة في هذه الآية.":"لا يوجد نصّ لهذه الآية."}</p>`;
+  }
+  return `<div class="tf-box">${head}${body}</div>`;
+}
 let THM=null, thOn=(()=>{try{return localStorage.getItem("quran-th-on")!=="0";}catch(e){return true;}})(), thLoading=null;
 function loadThemes(){
   if(THM||thLoading) return thLoading;
@@ -2124,7 +2151,8 @@ function renderMushaf(){
     ${mSel&&!linkFrom?(()=>{const L=mSel; const c=mistCountLoc(L); const g=groupOf(L); const phrase=L.we!==undefined&&L.we!==null;
       const title=L.w!==null?esc(locLabel(L)):`${SURAHS[L.s-1][0]} ${L.a} · الآية كاملة`;
       return `<div class="aya-bar"><div class="t"><span class="ttl">${title}</span><button id="selClose" aria-label="إغلاق">✕</button></div>
-      <div class="bar-acts"><button class="btn sm" id="selAdd" style="background:var(--red);color:#fff">✗ خطأ${c?" ("+c+")":""}</button>${c?`<button class="btn ghost sm" id="selDec" aria-label="إنقاص">−1</button><button class="btn ghost sm" id="selClr">إزالة الخطأ</button>`:""}<button class="btn ghost sm" id="mshAdd">≈ ${g?"موضع آخر":"متشابه"}</button>${(()=>{const O=occFor(L);return O.res.length?`<button class="btn ghost sm ${O.open?"on-occ":""}" id="occBtn">☰ تتكرر في ${O.res.length>=300?"300+":O.res.length}</button>`:`<span class="meta" style="font-size:12px">لا تتكرر في غيرها</span>`;})()}${L.w!==null?`<button class="linkbtn sm" id="selScope">الآية كاملة</button>`:""}</div>
+      <div class="bar-acts"><button class="btn sm" id="selAdd" style="background:var(--red);color:#fff">✗ خطأ${c?" ("+c+")":""}</button>${c?`<button class="btn ghost sm" id="selDec" aria-label="إنقاص">−1</button><button class="btn ghost sm" id="selClr">إزالة الخطأ</button>`:""}<button class="btn ghost sm ${tfOpen?"on-occ":""}" id="tfBtn">📖 تفسير</button><button class="btn ghost sm" id="mshAdd">≈ ${g?"موضع آخر":"متشابه"}</button>${(()=>{const O=occFor(L);return O.res.length?`<button class="btn ghost sm ${O.open?"on-occ":""}" id="occBtn">☰ تتكرر في ${O.res.length>=300?"300+":O.res.length}</button>`:`<span class="meta" style="font-size:12px">لا تتكرر في غيرها</span>`;})()}${L.w!==null?`<button class="linkbtn sm" id="selScope">الآية كاملة</button>`:""}</div>
+      ${tfBoxHTML(L)}
       ${(()=>{const O=occFor(L);if(!O.open||!O.res.length)return "";const shown=O.all?O.res:O.res.slice(0,30);
         return `<div class="occ"><div class="srch-top"><span class="meta">${L.w===null?"الآية نفسها":"«"+esc(locLabel(L).replace(/^.*«|»$/g,""))+"»"} في ${O.res.length>=300?"أكثر من 300 موضع":O.res.length===1?"موضع آخر":O.res.length+" مواضع أخرى"}</span>${O.res.length<=60?`<button class="linkbtn sm" id="occAll">${O.picked.size===O.res.length?"إلغاء الكل":"تحديد الكل"}</button>`:""}</div>
           <div class="srch-list" style="max-height:none">${shown.map((x,i)=>`<div class="srch-it"><input type="checkbox" data-opick="${i}" ${O.picked.has(i)?"checked":""} aria-label="اختيار"><button class="srch-go" data-goloc="${x.s}:${x.a}:${x.w??""}:${x.we??""}"><span class="ml">${esc(SURAHS[x.s-1][0])} ${x.a}${groupOf(x.w===null?{s:x.s,a:x.a,w:null}:x)?" · ≈ مربوطة":""}</span><span class="mq">${occSnippet(x)}</span></button></div>`).join("")}</div>
@@ -2148,6 +2176,8 @@ function renderMushaf(){
   const lo=document.getElementById("linkOk"); if(lo) lo.onclick=()=>{const T=cleanLoc(linkTo);if(sameLoc(cleanLoc(linkFrom),T)){toast("اختر موضعًا آخر");return;}linkLocs(cleanLoc(linkFrom),T);toast("رُبط "+locLabel(linkFrom)+" بـ "+locLabel(T));linkFrom=null;linkTo=null;mSel=T;selAnchor=null;noteEdit=!(groupOf(T)||{}).note;renderMushaf();};
   if(mSel&&!linkFrom){
     const S=mSel;
+    document.getElementById("tfBtn").onclick=()=>{tfOpen=!tfOpen;renderMushaf();};
+    document.querySelectorAll("[data-tftab]").forEach(b=>b.onclick=()=>{tfTab=b.dataset.tftab;renderMushaf();});
     document.getElementById("selClose").onclick=()=>{mSel=null;noteEdit=false;renderMushaf();};
     const sc=document.getElementById("selScope"); if(sc) sc.onclick=()=>{mSel={s:S.s,a:S.a,w:null};selAnchor=null;renderMushaf();};
     const gc=document.getElementById("gNoteCancel"); if(gc) gc.onclick=()=>{noteEdit=false;renderMushaf();};
