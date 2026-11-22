@@ -444,3 +444,10 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .qh-q{font-family:"Qaloon",serif;font-size:24px;line-height:1.9}
 .qh-h{font-family:"Hafs",serif;font-size:24px;line-height:1.9;color:var(--qh)}
 .qh-k{font-size:13px;color:var(--muted);margin-top:2px}.qh-k b{color:var(--ink);font-weight:600}
+
+/* reading view (⛶): only the page and its topics */
+body.m-read header,body.m-read .tabbar,body.m-read #v-mushaf .m-bar,body.m-read #v-mushaf>.help,body.m-read #v-mushaf .rv-add,body.m-read #mSrc,body.m-read #v-mushaf .srch{display:none!important}
+body.m-read .wrap{padding-top:calc(env(safe-area-inset-top,0px) + 6px);padding-bottom:0}
+body.m-read .aya-bar{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.m-readx{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;z-index:30;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 70%,transparent);color:var(--muted);font-size:14px;cursor:pointer;opacity:.75;backdrop-filter:blur(4px)}
+body.m-read #v-mushaf .th-leg{padding-left:38px}

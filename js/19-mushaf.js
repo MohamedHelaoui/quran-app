@@ -57,7 +57,7 @@ function qhBoxHTML(L){
     <div class="qh-k"><b>${esc(e[5])}</b> · ${esc(QH_KIND[e[5]]||"")}</div></div>`).join("")}
     <p class="help" style="margin:4px 0 0">مقارنة آلية بين نصَّي مجمع الملك فهد للروايتين.</p></div>`;
 }
-function setView(v){const changed=view!==v;view=v;document.querySelectorAll(".tabbar button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));document.querySelectorAll(".icon-btn[data-go=settings]").forEach(x=>x.classList.toggle("on",v==="settings"));render();if(changed)window.scrollTo(0,0);}
+function setView(v){const changed=view!==v;view=v;document.body.classList.toggle("m-read",v==="mushaf"&&mRead);document.querySelectorAll(".tabbar button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));document.querySelectorAll(".icon-btn[data-go=settings]").forEach(x=>x.classList.toggle("on",v==="settings"));render();if(changed)window.scrollTo(0,0);}
 function openMushaf(sn,from,to){
   afterQ().then(()=>{mPage=pageOfQ(sn,from);mHi=isH()?{s:sn,from:q2h(sn,from),to:q2h(sn,to)}:{s:sn,from,to};clearRev();mScroll=true;setView("mushaf");window.scrollTo(0,0);})
   .catch(()=>toast("تعذّر تحميل المصحف"));
@@ -133,12 +133,17 @@ function firstWordHTML(txt){
 // "full page" view: the font is sized so the whole page fits on the screen above the tab bar, no scrolling.
 // The size is kept per page and screen size, so tapping or revealing words never changes it (hidden words keep their space).
 let mFit=(()=>{try{return localStorage.getItem("quran-fit")!=="0";}catch(e){return true;}})();
+// reading view: only the page (and its topics) on the screen, everything else hidden; full-page fit is always on there
+let mRead=(()=>{try{return localStorage.getItem("quran-read")==="1";}catch(e){return false;}})();
+function fitOn(){return mFit||mRead;}
+function fitKey(){return [RIW,mRead?1:0,mPage,window.innerWidth,window.innerHeight,thOn?1:0,document.fonts&&document.fonts.status].join("|");}
+function setRead(on){mRead=on;try{localStorage.setItem("quran-read",on?"1":"0");}catch(e){}renderMushaf();mushafTop();}
 const fitCache=new Map();
 function fitAvail(){const tb=document.querySelector(".tabbar");return window.innerHeight-(tb?tb.getBoundingClientRect().height:0)-10;}
 function fitMushaf(){
   const card=document.querySelector("#v-mushaf .mushaf"); if(!card) return;
-  card.classList.toggle("fit",mFit); if(!mFit){card.style.removeProperty("--mfs");return;}
-  const key=[RIW,mPage,window.innerWidth,window.innerHeight,thOn?1:0,document.fonts&&document.fonts.status].join("|");
+  card.classList.toggle("fit",fitOn()); if(!fitOn()){card.style.removeProperty("--mfs");return;}
+  const key=fitKey();
   let fs=fitCache.get(key);
   if(fs===undefined){
     const lg=document.querySelector("#v-mushaf .th-leg");
@@ -150,11 +155,12 @@ function fitMushaf(){
   card.style.setProperty("--mfs",fs+"px");
 }
 // after turning a page: in full-page view bring the page itself to the top of the screen
-function mushafTop(){if(!mFit){window.scrollTo(0,0);return;}const c=document.querySelector("#v-mushaf .th-leg")||document.querySelector("#v-mushaf .mushaf");if(c)window.scrollTo(0,Math.max(0,c.getBoundingClientRect().top+window.scrollY-6));}
-window.addEventListener("resize",()=>{if(view==="mushaf"&&mFit)fitMushaf();});
-if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(view==="mushaf"&&mFit)fitMushaf();});
+function mushafTop(){if(!fitOn()){window.scrollTo(0,0);return;}const c=document.querySelector("#v-mushaf .th-leg")||document.querySelector("#v-mushaf .mushaf");if(c)window.scrollTo(0,Math.max(0,c.getBoundingClientRect().top+window.scrollY-6));}
+window.addEventListener("resize",()=>{if(view==="mushaf"&&fitOn())fitMushaf();});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(view==="mushaf"&&fitOn())fitMushaf();});
 function renderMushaf(){
-  const el=document.getElementById("v-mushaf");
+  const el=document.getElementById("v-mushaf"); const keepY=window.scrollY;
+  document.body.classList.toggle("m-read",mRead&&view==="mushaf");
   if(!Q){
     el.innerHTML=`<div class="card empty"><p class="meta">جارٍ تحميل المصحف…</p></div>`;
     loadQ().then(()=>{if(view==="mushaf")renderMushaf();}).catch(()=>{el.innerHTML=`<div class="card empty"><p class="meta">تعذّر تحميل المصحف. أعد المحاولة لاحقًا.</p><div class="row-btns"><button class="btn" id="mRetry">إعادة المحاولة</button></div></div>`;document.getElementById("mRetry").onclick=renderMushaf;});
@@ -185,13 +191,14 @@ function renderMushaf(){
     for(const [sn,a] of list){const k=THM.at.get(sn+":"+qa(sn,a));if(k===undefined||seen.has(k))continue;seen.add(k);const c=THM.secs[k];
       const f=H?q2h(c.s,c.from):c.from, t=H?Math.max(f,(QH.h[c.s-1][c.to-1]||[q2h(c.s,c.to)]).slice(-1)[0]):c.to;
       thLeg+=`<span class="th-chip" data-th="${k%8}">${multi?esc(SURAHS[c.s-1][0])+" · ":""}${c.t?`<span dir="auto">${esc(c.t)}</span>`:"آيات"}<i dir="ltr">${f===t?f:f+"–"+t}</i></span>`;}
-    if(thLeg)thLeg=`<div class="th-leg${mFit?" one":""}" aria-label="موضوعات الصفحة">${thLeg}</div>`;}
+    if(thLeg)thLeg=`<div class="th-leg${fitOn()?" one":""}" aria-label="موضوعات الصفحة">${thLeg}</div>`;}
   body=(`<div class="m-text">`+body+`</div>`).replace(/<div class="m-text"><\/div>/g,"");
   const opts=SURAHS.map((x,i)=>`<option value="${i+1}" ${first&&first[0]===i+1?"selected":""}>${i+1}. ${x[0]}</option>`).join("");
   el.innerHTML=`<div class="m-bar">
       <select id="mSura" aria-label="السورة">${opts}</select>
       <label class="meta">صفحة <input type="number" id="mPg" min="1" max="604" value="${mPage}"></label>
       <button class="icon-nav ${mSearch.open?"on":""}" id="mSrchBtn" aria-label="بحث" title="بحث في المصحف" style="font-size:16px">🔍</button>
+      <button class="icon-nav" id="mReadBtn" aria-label="ملء الشاشة: الصفحة وحدها" title="ملء الشاشة" style="font-size:16px">⛶</button>
       <button class="icon-nav ${mFit?"on":""}" id="mFitBtn" aria-label="${mFit?"صفحة كاملة (اضغط للخط الكبير)":"خط كبير (اضغط للصفحة الكاملة)"}" title="${mFit?"صفحة كاملة":"خط كبير"}" style="font-size:16px">${mFit?"📄":"🔠"}</button>
       ${THM?`<button class="icon-nav ${thOn?"on":""}" id="mThBtn" aria-label="ألوان الموضوعات" title="ألوان الموضوعات" style="font-size:16px">🎨</button>`:""}
       ${HUF()&&!H?`<button class="icon-nav ${qhShow?"on":""}" id="mQhBtn" aria-label="الفروق مع رواية حفص" title="الفروق مع حفص" style="font-size:15px">⇄</button>`:""}
@@ -205,7 +212,8 @@ function renderMushaf(){
       <div style="display:flex;gap:6px;flex:none">${linkTo?`<button class="btn" id="linkOk" style="background:var(--gold-leaf);color:#0d1230">ربط</button>`:""}<button class="btn ghost" id="linkCancel">إلغاء</button></div></div>`:""}
     ${searchPanelHTML()}
     ${thLeg}
-    <div class="mushaf${segMode()?" seg-mode":""}${H?" hafs":""}">${body}
+    ${mRead?`<button class="m-readx" id="mReadX" aria-label="خروج من ملء الشاشة">✕</button>`:""}
+    <div class="mushaf${segMode()?" seg-mode":""}${H?" hafs":""}${fitOn()?" fit":""}"${fitOn()&&fitCache.has(fitKey())?` style="--mfs:${fitCache.get(fitKey())}px"`:""}>${body}
       <div class="m-foot"><button class="btn ghost" id="mPrev" ${mPage<=1?"disabled":""}>→ السابقة</button><span>${mPage}</span><button class="btn ghost" id="mNext" ${mPage>=604?"disabled":""}>التالية ←</button></div>
     </div>
     ${mHi?`<p class="help" style="text-align:center">المقطع المظلّل: سورة ${SURAHS[mHi.s-1][0]}، الآيات ${mHi.from}–${mHi.to} <button class="linkbtn" id="mClearHi">إزالة التظليل</button></p>`:""}
@@ -236,6 +244,8 @@ function renderMushaf(){
   document.getElementById("mPg").onchange=e=>goPage(e.target.value);
   document.getElementById("mSrchBtn").onclick=()=>{mSearch.open=!mSearch.open;renderMushaf();const i=document.getElementById("sQ");if(i)i.focus();};
   bindSearch();
+  document.getElementById("mReadBtn").onclick=()=>{setRead(true);toast("ملء الشاشة · ✕ في الأعلى للخروج");};
+  const rx=document.getElementById("mReadX"); if(rx) rx.onclick=()=>setRead(false);
   document.getElementById("mFitBtn").onclick=()=>{mFit=!mFit;try{localStorage.setItem("quran-fit",mFit?"1":"0");}catch(e){}renderMushaf();if(mFit)mushafTop();toast(mFit?"الصفحة كاملة على الشاشة":"خط كبير، مع التمرير");};
   const thb=document.getElementById("mThBtn"); if(thb) thb.onclick=()=>{thOn=!thOn;try{localStorage.setItem("quran-th-on",thOn?"1":"0");}catch(e){}renderMushaf();};
   document.getElementById("mPrev").onclick=()=>{goPage(mPage-1);mushafTop();};
@@ -271,6 +281,7 @@ function renderMushaf(){
   }
   {const bar=el.querySelector(".aya-bar");const src=document.getElementById("mSrc");if(src)src.style.marginBottom=bar?(bar.offsetHeight+24)+"px":"";}
   fitMushaf();
+  if(!mScroll&&Math.abs(window.scrollY-keepY)>1) window.scrollTo(0,keepY);
   if(mScroll){mScroll=false;const h=el.querySelector(".wsel")||el.querySelector(".aya.sel")||el.querySelector(".aya.hi");if(h)h.scrollIntoView({block:"center"});}
 }
 document.addEventListener("keydown",e=>{
