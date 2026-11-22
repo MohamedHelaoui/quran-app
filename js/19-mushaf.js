@@ -51,6 +51,20 @@ document.addEventListener("pointermove",e=>{if(lpT&&Math.hypot(e.clientX-lpX,e.c
 ["pointerup","pointercancel"].forEach(ev=>document.addEventListener(ev,()=>{clearTimeout(lpT);lpT=null;if(suppressClick)setTimeout(()=>{suppressClick=false;},400);}));
 document.addEventListener("scroll",()=>{clearTimeout(lpT);lpT=null;},true);
 document.addEventListener("contextmenu",e=>{if(e.target.closest&&e.target.closest(".seg-mode"))e.preventDefault();});
+// swipe on the page to turn it, like a printed mushaf: drag to the right = next page, to the left = previous
+let swX=null,swY=0,swT=0;
+document.addEventListener("touchstart",e=>{
+  if(view!=="mushaf"||e.touches.length!==1||!e.target.closest||!e.target.closest(".mushaf")){swX=null;return;}
+  swX=e.touches[0].clientX; swY=e.touches[0].clientY; swT=Date.now();
+},{passive:true});
+document.addEventListener("touchend",e=>{
+  if(swX===null) return; const t=e.changedTouches[0]; const dx=t.clientX-swX, dy=t.clientY-swY; swX=null;
+  if(Date.now()-swT>700||Math.abs(dx)<60||Math.abs(dx)<1.8*Math.abs(dy)) return;
+  const to=dx>0?mPage+1:mPage-1; if(to<1||to>604) return;
+  clearTimeout(lpT); lpT=null; suppressClick=true; setTimeout(()=>{suppressClick=false;},400);
+  goPage(to); window.scrollTo(0,0);
+  const m=document.querySelector("#v-mushaf .mushaf"); if(m){m.classList.add(dx>0?"pg-in-l":"pg-in-r");}
+},{passive:true});
 function ayaParts(txt){const m=txt.match(/^([\s\S]*?)(\u00a0[\u0660-\u0669]+)$/);const body=m?m[1]:txt;return {words:body.split(" "),num:m?m[2]:""};}
 // how many words of an ayah are shown in the current mode
 function shownWords(sn,a,len){const k=sn+":"+a;if(revealed.has(k))return Math.min(len,revealed.get(k));return mMode===2?0:mMode===1?1:len;}

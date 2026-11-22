@@ -405,3 +405,10 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .rv-chk{width:100%;margin-top:8px}
 .item.rv-done{opacity:.8}
 .rv-add{margin:0 0 8px;align-items:center}
+
+/* page turn after a swipe */
+@keyframes pgInL{from{opacity:.3;transform:translateX(-28px)}to{opacity:1;transform:none}}
+@keyframes pgInR{from{opacity:.3;transform:translateX(28px)}to{opacity:1;transform:none}}
+.mushaf.pg-in-l{animation:pgInL .22s ease-out}.mushaf.pg-in-r{animation:pgInR .22s ease-out}
+.mushaf{touch-action:pan-y pinch-zoom}
+@media (prefers-reduced-motion: reduce){.mushaf.pg-in-l,.mushaf.pg-in-r{animation:none}}
