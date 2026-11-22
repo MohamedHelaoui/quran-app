@@ -66,3 +66,10 @@ python3 tools/build_mut.py PATH/TO/mutashabiha_data.json mut.json
 - `css/style.css`: كل التنسيق. `fonts/qaloon-v21.woff`: خط قالون (KFGQPC Qaloun Uthmanic Script، الإصدار 2.1).
 - `js/01-…21-*.js`: الشيفرة مقسّمة حسب الأجزاء (الحالة، المزامنة، المراجعة، المتشابهات، الختمة، المصحف، الأذكار…)، وتُحمَّل بهذا الترتيب. الملف الأخير `21-main.js` يبدأ التطبيق.
 - بعد أي تعديل: `python3 tools/bump.py` (يرفع رقم النسخة في `sw.js` وفي روابط css/js) حتى تأخذ الهواتف النسخة الجديدة.
+
+## مصحف حفص (اختياري، وضع الحفّاظ)
+زرّ «قالون / حفص» في المصحف. حفص للقراءة والمراجعة فقط (العرض، أول كلمة، الإخفاء عند الوقف، الألوان، التفسير)، والأخطاء والمتشابهات و«مراجعتي» تبقى في قالون. يُحمَّل `hafs.json` و`fonts/hafs-v18.woff2` عند اختياره فقط. المصدر: بيانات حفص الإصدار 18 من مجمع الملك فهد عبر [thetruetruth/quran-data-kfgqpc](https://github.com/thetruetruth/quran-data-kfgqpc). لإعادة البناء:
+
+```
+python3 tools/build_hafs.py PATH/TO/hafsData_v18.json hafs.json
+```

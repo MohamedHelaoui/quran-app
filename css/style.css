@@ -217,6 +217,7 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .auth-msg.ok{color:var(--muted)}
 .auth-guest{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:2px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@font-face{font-family:"Hafs";src:url(../fonts/hafs-v18.woff2) format("woff2");font-display:block}
 @font-face{font-family:"Qaloon";src:url(../fonts/qaloon-v21.woff) format("woff");font-display:block}
 .m-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
 .m-bar select,.m-bar input{font:inherit;font-size:14px;border:1px solid var(--line);border-radius:10px;padding:7px 10px;background:var(--card);color:var(--ink)}
@@ -420,3 +421,7 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .mushaf.fit .m-foot .btn{padding-top:6px;padding-bottom:6px}
 .mushaf.fit .basmala{font-size:var(--mfs,23px)}
 .mushaf.fit .s-head{margin-top:2px;margin-bottom:4px;padding-top:2px;padding-bottom:2px}
+
+/* optional Hafs mushaf (huffaz mode) */
+.mushaf.hafs .m-text,.mushaf.hafs .basmala{font-family:"Hafs",serif}
+.icon-nav.riw{width:auto;padding:0 10px;font:600 13px "Readex Pro",sans-serif}

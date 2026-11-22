@@ -44,7 +44,7 @@ document.addEventListener("click",e=>{
   if(d.merge){mergeSurah(Number(d.merge));return;}
   if(d.aya){ const [sn,a]=d.aya.split(":").map(Number);
     if(segMode()&&!linkFrom){ if(suppressClick){suppressClick=false;return;} const w0=e.target.closest("[data-w]"); if(!e.target.closest("[data-anum]")||t.classList.contains("hiding")){ segTap(sn,a,w0?Number(w0.dataset.w):null); return; } }
-    if(t.classList.contains("hiding")){ const len=ayaParts(Q.t[sn-1][a-1]).words.length; const cur=shownWords(sn,a,len); revealed.set(d.aya,mUnit==="aya"?len:cur+1); renderMushaf(); return; }
+    if(t.classList.contains("hiding")){ const len=ayaParts(MD().t[sn-1][a-1]).words.length; const cur=shownWords(sn,a,len); revealed.set(d.aya,mUnit==="aya"?len:cur+1); renderMushaf(); return; }
     const wEl=e.target.closest("[data-w]"); const w=wEl?Number(wEl.dataset.w):null;
     // picking a word extends the current pick to a phrase when it is in the same ayah
     const pick=(cur)=>{ if(w===null) return {s:sn,a,w:null};
@@ -54,7 +54,7 @@ document.addEventListener("click",e=>{
     const n=pick(mSel); if(!n||w===null) selAnchor=w===null?null:selAnchor; mSel=n; if(!n) selAnchor=null; noteEdit=false; renderMushaf(); return; }
   if(d.goloc){const [sn,a,w,we]=d.goloc.split(":");const l={s:+sn,a:+a,w:w===""?null:+w};if(we!==undefined&&we!=="")l.we=+we;selAnchor=null;goLoc(l);return;}
   if(d.munit){mUnit=d.munit;renderMushaf();return;}
-  if(d.openaya){const [sn,a]=d.openaya.split(":").map(Number);loadQ().then(()=>{mPage=Q.p[sn-1][a-1];mHi=null;mSel={s:sn,a,w:null};clearRev();mScroll=true;setView("mushaf");}).catch(()=>toast("تعذّر تحميل المصحف"));return;}
+  if(d.openaya){const [sn,a]=d.openaya.split(":").map(Number);afterQ().then(()=>{mPage=pageOfQ(sn,a);mHi=null;mSel={s:sn,a:isH()?q2h(sn,a):a,w:null};clearRev();mScroll=true;setView("mushaf");}).catch(()=>toast("تعذّر تحميل المصحف"));return;}
   if(d.open){const it=state.items[d.open];if(it)openMushaf(it.s,it.from,it.to);return;}
   if(d.rate){rate(d.id,d.rate);}
   else if(d.edit){const n=Number(d.edit);openEdit=openEdit===n?null:n;relist();}
