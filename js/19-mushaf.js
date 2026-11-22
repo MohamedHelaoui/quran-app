@@ -62,7 +62,7 @@ document.addEventListener("touchend",e=>{
   if(Date.now()-swT>700||Math.abs(dx)<60||Math.abs(dx)<1.8*Math.abs(dy)) return;
   const to=dx>0?mPage+1:mPage-1; if(to<1||to>604) return;
   clearTimeout(lpT); lpT=null; suppressClick=true; setTimeout(()=>{suppressClick=false;},400);
-  goPage(to); window.scrollTo(0,0);
+  goPage(to); mushafTop();
   const m=document.querySelector("#v-mushaf .mushaf"); if(m){m.classList.add(dx>0?"pg-in-l":"pg-in-r");}
 },{passive:true});
 function ayaParts(txt){const m=txt.match(/^([\s\S]*?)(\u00a0[\u0660-\u0669]+)$/);const body=m?m[1]:txt;return {words:body.split(" "),num:m?m[2]:""};}
@@ -82,6 +82,28 @@ function firstWordHTML(txt){
   const i=body.indexOf(" "); if(i<0) return esc(txt);
   return esc(body.slice(0,i))+`<span class="hidw"> ${esc(body.slice(i+1))}</span>`+esc(num);
 }
+// "full page" view: the font is sized so the whole page fits on the screen above the tab bar, no scrolling.
+// The size is kept per page and screen size, so tapping or revealing words never changes it (hidden words keep their space).
+let mFit=(()=>{try{return localStorage.getItem("quran-fit")!=="0";}catch(e){return true;}})();
+const fitCache=new Map();
+function fitAvail(){const tb=document.querySelector(".tabbar");return window.innerHeight-(tb?tb.getBoundingClientRect().height:0)-10;}
+function fitMushaf(){
+  const card=document.querySelector("#v-mushaf .mushaf"); if(!card) return;
+  card.classList.toggle("fit",mFit); if(!mFit){card.style.removeProperty("--mfs");return;}
+  const key=[mPage,window.innerWidth,window.innerHeight,thOn?1:0,document.fonts&&document.fonts.status].join("|");
+  let fs=fitCache.get(key);
+  if(fs===undefined){
+    const avail=fitAvail(); let lo=13,hi=Math.min(40,Math.max(24,Math.round(window.innerWidth/14)));
+    const fits=v=>{card.style.setProperty("--mfs",v+"px");return card.getBoundingClientRect().height<=avail;};
+    if(fits(hi)) fs=hi; else { while(hi-lo>0.5){const mid=(lo+hi)/2; if(fits(mid)) lo=mid; else hi=mid;} fs=Math.floor(lo*2)/2; }
+    fitCache.set(key,fs);
+  }
+  card.style.setProperty("--mfs",fs+"px");
+}
+// after turning a page: in full-page view bring the page itself to the top of the screen
+function mushafTop(){if(!mFit){window.scrollTo(0,0);return;}const c=document.querySelector("#v-mushaf .mushaf");if(c)window.scrollTo(0,Math.max(0,c.getBoundingClientRect().top+window.scrollY-6));}
+window.addEventListener("resize",()=>{if(view==="mushaf"&&mFit)fitMushaf();});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(view==="mushaf"&&mFit)fitMushaf();});
 function renderMushaf(){
   const el=document.getElementById("v-mushaf");
   if(!Q){
@@ -114,6 +136,7 @@ function renderMushaf(){
       <select id="mSura" aria-label="السورة">${opts}</select>
       <label class="meta">صفحة <input type="number" id="mPg" min="1" max="604" value="${mPage}"></label>
       <button class="icon-nav ${mSearch.open?"on":""}" id="mSrchBtn" aria-label="بحث" title="بحث في المصحف" style="font-size:16px">🔍</button>
+      <button class="icon-nav ${mFit?"on":""}" id="mFitBtn" aria-label="${mFit?"صفحة كاملة (اضغط للخط الكبير)":"خط كبير (اضغط للصفحة الكاملة)"}" title="${mFit?"صفحة كاملة":"خط كبير"}" style="font-size:16px">${mFit?"📄":"🔠"}</button>
       ${THM?`<button class="icon-nav ${thOn?"on":""}" id="mThBtn" aria-label="ألوان الموضوعات" title="ألوان الموضوعات" style="font-size:16px">🎨</button>`:""}
       <div class="seg-ctl" role="group" aria-label="طريقة العرض">${["عرض","أول كلمة","إخفاء"].map((x,i)=>`<button data-mmode="${i}" class="${mMode===i?"on":""}">${x}</button>`).join("")}</div>
 
@@ -148,9 +171,10 @@ function renderMushaf(){
   document.getElementById("mPg").onchange=e=>goPage(e.target.value);
   document.getElementById("mSrchBtn").onclick=()=>{mSearch.open=!mSearch.open;renderMushaf();const i=document.getElementById("sQ");if(i)i.focus();};
   bindSearch();
+  document.getElementById("mFitBtn").onclick=()=>{mFit=!mFit;try{localStorage.setItem("quran-fit",mFit?"1":"0");}catch(e){}renderMushaf();if(mFit)mushafTop();toast(mFit?"الصفحة كاملة على الشاشة":"خط كبير، مع التمرير");};
   const thb=document.getElementById("mThBtn"); if(thb) thb.onclick=()=>{thOn=!thOn;try{localStorage.setItem("quran-th-on",thOn?"1":"0");}catch(e){}renderMushaf();};
-  document.getElementById("mPrev").onclick=()=>{goPage(mPage-1);window.scrollTo(0,0);};
-  document.getElementById("mNext").onclick=()=>{goPage(mPage+1);window.scrollTo(0,0);};
+  document.getElementById("mPrev").onclick=()=>{goPage(mPage-1);mushafTop();};
+  document.getElementById("mNext").onclick=()=>{goPage(mPage+1);mushafTop();};
   const ch=document.getElementById("mClearHi"); if(ch) ch.onclick=()=>{mHi=null;renderMushaf();};
   const lc=document.getElementById("linkCancel"); if(lc) lc.onclick=()=>{mSel=linkFrom;linkFrom=null;linkTo=null;renderMushaf();};
   const lo=document.getElementById("linkOk"); if(lo) lo.onclick=()=>{const T=cleanLoc(linkTo);if(sameLoc(cleanLoc(linkFrom),T)){toast("اختر موضعًا آخر");return;}linkLocs(cleanLoc(linkFrom),T);toast("رُبط "+locLabel(linkFrom)+" بـ "+locLabel(T));linkFrom=null;linkTo=null;mSel=T;selAnchor=null;noteEdit=!(groupOf(T)||{}).note;renderMushaf();};
@@ -176,6 +200,7 @@ function renderMushaf(){
     const md=document.getElementById("mshDel"); if(md) md.onclick=()=>{unlinkLoc(S);toast("أُزيل من المتشابهات");renderMushaf();};
   }
   {const bar=el.querySelector(".aya-bar");const src=document.getElementById("mSrc");if(src)src.style.marginBottom=bar?(bar.offsetHeight+24)+"px":"";}
+  fitMushaf();
   if(mScroll){mScroll=false;const h=el.querySelector(".wsel")||el.querySelector(".aya.sel")||el.querySelector(".aya.hi");if(h)h.scrollIntoView({block:"center"});}
 }
 document.addEventListener("keydown",e=>{

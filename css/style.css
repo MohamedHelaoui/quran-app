@@ -412,3 +412,11 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .mushaf.pg-in-l{animation:pgInL .22s ease-out}.mushaf.pg-in-r{animation:pgInR .22s ease-out}
 .mushaf{touch-action:pan-y pinch-zoom}
 @media (prefers-reduced-motion: reduce){.mushaf.pg-in-l,.mushaf.pg-in-r{animation:none}}
+
+/* full-page view: font set by fitMushaf(); tighter frame so more of the screen is text */
+.mushaf.fit{padding:12px 12px 8px}
+.mushaf.fit .m-text{font-size:var(--mfs,23px);line-height:2}
+.mushaf.fit .m-foot{margin-top:6px}
+.mushaf.fit .m-foot .btn{padding-top:6px;padding-bottom:6px}
+.mushaf.fit .basmala{font-size:var(--mfs,23px)}
+.mushaf.fit .s-head{margin-top:2px;margin-bottom:4px;padding-top:2px;padding-bottom:2px}
