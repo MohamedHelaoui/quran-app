@@ -92,5 +92,21 @@ function hideToast(){document.getElementById("toast").classList.add("hidden");}
 let renderedDay=today();
 document.addEventListener("visibilitychange",()=>{if(!document.hidden&&today()!==renderedDay){renderedDay=today();render();}});
 
+// ---- Appearance: auto (follows the phone) → light → dark, saved on this device ----
+const THEME_ICO={auto:'<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/>',
+  light:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  dark:'<path d="M20.5 14.2A8.5 8.5 0 1 1 9.8 3.5a7 7 0 0 0 10.7 10.7z"/>'};
+const THEME_NAME={auto:"المظهر: تلقائي (حسب الهاتف)",light:"المظهر: فاتح",dark:"المظهر: داكن"};
+function themePref(){let m;try{m=localStorage.getItem("quran-theme");}catch(e){}return m==="light"||m==="dark"?m:"auto";}
+const darkMQ=window.matchMedia?matchMedia("(prefers-color-scheme: dark)"):null;
+function applyTheme(){const m=themePref();const d=m==="dark"||(m==="auto"&&darkMQ&&darkMQ.matches);
+  document.documentElement.setAttribute("data-theme",d?"dark":"light");
+  const mt=document.querySelector('meta[name="theme-color"]');if(mt)mt.setAttribute("content",d?"#0a0f2a":"#1f2b6b");
+  const ic=document.getElementById("themeIco");if(ic)ic.innerHTML=THEME_ICO[m];
+  const b=document.getElementById("themeBtn");if(b){b.title=THEME_NAME[m];b.setAttribute("aria-label",THEME_NAME[m]);}}
+document.getElementById("themeBtn").onclick=()=>{const order=["auto","light","dark"];const n=order[(order.indexOf(themePref())+1)%3];
+  try{localStorage.setItem("quran-theme",n);}catch(e){}applyTheme();toast(THEME_NAME[n]);};
+if(darkMQ){const f=()=>{if(themePref()==="auto")applyTheme();};darkMQ.addEventListener?darkMQ.addEventListener("change",f):darkMQ.addListener(f);}
+applyTheme();
 initDb();
 if("serviceWorker" in navigator&&location.protocol!=="file:"){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").then(()=>navigator.serviceWorker.ready).then(()=>{ /* pass the fonts stylesheet through the worker once so it is kept for offline use */ document.querySelectorAll('link[rel=stylesheet][href*="fonts.googleapis"]').forEach(l=>fetch(l.href,{mode:"no-cors"}).catch(()=>{})); }).catch(()=>{});});}
