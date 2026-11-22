@@ -425,3 +425,9 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 /* optional Hafs mushaf (huffaz mode) */
 .mushaf.hafs .m-text,.mushaf.hafs .basmala{font-family:"Hafs",serif}
 .icon-nav.riw{width:auto;padding:0 10px;font:600 13px "Readex Pro",sans-serif}
+
+/* full-page view: the page topics in one row above the page (scroll sideways if there are many) */
+.th-leg.one{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-bottom:6px;padding-bottom:2px}
+.th-leg.one::-webkit-scrollbar{display:none}
+.th-leg.one .th-chip{flex:none;max-width:78vw}
+.th-leg.one .th-chip span{-webkit-line-clamp:1}

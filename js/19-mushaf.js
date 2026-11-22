@@ -120,7 +120,8 @@ function fitMushaf(){
   const key=[RIW,mPage,window.innerWidth,window.innerHeight,thOn?1:0,document.fonts&&document.fonts.status].join("|");
   let fs=fitCache.get(key);
   if(fs===undefined){
-    const avail=fitAvail(); let lo=13,hi=Math.min(40,Math.max(24,Math.round(window.innerWidth/14)));
+    const lg=document.querySelector("#v-mushaf .th-leg");
+    const avail=fitAvail()-(lg?Math.max(0,card.getBoundingClientRect().top-lg.getBoundingClientRect().top):0); let lo=13,hi=Math.min(40,Math.max(24,Math.round(window.innerWidth/14)));
     const fits=v=>{card.style.setProperty("--mfs",v+"px");return card.getBoundingClientRect().height<=avail;};
     if(fits(hi)) fs=hi; else { while(hi-lo>0.5){const mid=(lo+hi)/2; if(fits(mid)) lo=mid; else hi=mid;} fs=Math.floor(lo*2)/2; }
     fitCache.set(key,fs);
@@ -128,7 +129,7 @@ function fitMushaf(){
   card.style.setProperty("--mfs",fs+"px");
 }
 // after turning a page: in full-page view bring the page itself to the top of the screen
-function mushafTop(){if(!mFit){window.scrollTo(0,0);return;}const c=document.querySelector("#v-mushaf .mushaf");if(c)window.scrollTo(0,Math.max(0,c.getBoundingClientRect().top+window.scrollY-6));}
+function mushafTop(){if(!mFit){window.scrollTo(0,0);return;}const c=document.querySelector("#v-mushaf .th-leg")||document.querySelector("#v-mushaf .mushaf");if(c)window.scrollTo(0,Math.max(0,c.getBoundingClientRect().top+window.scrollY-6));}
 window.addEventListener("resize",()=>{if(view==="mushaf"&&mFit)fitMushaf();});
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(view==="mushaf"&&mFit)fitMushaf();});
 function renderMushaf(){
@@ -163,7 +164,7 @@ function renderMushaf(){
     for(const [sn,a] of list){const k=THM.at.get(sn+":"+qa(sn,a));if(k===undefined||seen.has(k))continue;seen.add(k);const c=THM.secs[k];
       const f=H?q2h(c.s,c.from):c.from, t=H?Math.max(f,(QH.h[c.s-1][c.to-1]||[q2h(c.s,c.to)]).slice(-1)[0]):c.to;
       thLeg+=`<span class="th-chip" data-th="${k%8}">${multi?esc(SURAHS[c.s-1][0])+" · ":""}${c.t?`<span dir="auto">${esc(c.t)}</span>`:"آيات"}<i dir="ltr">${f===t?f:f+"–"+t}</i></span>`;}
-    if(thLeg)thLeg=`<div class="th-leg" aria-label="موضوعات الصفحة">${thLeg}</div>`;}
+    if(thLeg)thLeg=`<div class="th-leg${mFit?" one":""}" aria-label="موضوعات الصفحة">${thLeg}</div>`;}
   body=(`<div class="m-text">`+body+`</div>`).replace(/<div class="m-text"><\/div>/g,"");
   const opts=SURAHS.map((x,i)=>`<option value="${i+1}" ${first&&first[0]===i+1?"selected":""}>${i+1}. ${x[0]}</option>`).join("");
   el.innerHTML=`<div class="m-bar">
