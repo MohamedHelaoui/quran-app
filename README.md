@@ -73,3 +73,10 @@ python3 tools/build_mut.py PATH/TO/mutashabiha_data.json mut.json
 ```
 python3 tools/build_hafs.py PATH/TO/hafsData_v18.json hafs.json
 ```
+
+## الخلاف مع رواية حفص (وضع الحفّاظ)
+في مصحف قالون نقطة زرقاء صغيرة فوق كل كلمة تختلف فيها رواية حفص، وبالضغط عليها تظهر الروايتان ونوع الخلاف (فرش الحروف، الهمز، إسكان الهاء، ياء الإضافة). البيانات في `qh.json` (1344 موضعًا) ناتجة عن مقارنة آلية لنصَّي مجمع الملك فهد بعد حذف فروق الرسم والضبط:
+
+```
+python3 tools/build_qh.py
+```

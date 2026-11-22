@@ -431,3 +431,16 @@ input[type=date]{font:inherit;border:1px solid var(--line);border-radius:10px;pa
 .th-leg.one::-webkit-scrollbar{display:none}
 .th-leg.one .th-chip{flex:none;max-width:78vw}
 .th-leg.one .th-chip span{-webkit-line-clamp:1}
+
+/* words where Qalun differs from Hafs: a small dot above the word */
+:root{--qh:#2b7bd6}:root[data-theme="dark"]{--qh:#7fb6ff}
+.m-text .w.wqh{position:relative}
+.m-text .w.wqh::before{content:"";position:absolute;top:.05em;left:50%;width:.2em;height:.2em;margin-left:-.1em;border-radius:50%;background:var(--qh);pointer-events:none}
+.qh-box{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.qh-t{font-weight:600;font-size:14px;margin-bottom:4px}
+.qh-it{padding:6px 0;border-bottom:1px dashed var(--line)}.qh-it:last-of-type{border-bottom:0}
+.qh-row{display:flex;align-items:baseline;gap:10px}
+.qh-l{flex:none;width:44px;font-size:12.5px;color:var(--muted)}
+.qh-q{font-family:"Qaloon",serif;font-size:24px;line-height:1.9}
+.qh-h{font-family:"Hafs",serif;font-size:24px;line-height:1.9;color:var(--qh)}
+.qh-k{font-size:13px;color:var(--muted);margin-top:2px}.qh-k b{color:var(--ink);font-weight:600}

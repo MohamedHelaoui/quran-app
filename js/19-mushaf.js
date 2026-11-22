@@ -36,6 +36,27 @@ function setRiw(r){
   mSel=null;selAnchor=null;linkFrom=null;linkTo=null;mHi=null;tfOpen=false;mtOpen=false;clearRev();
   afterQ().then(()=>{if(qloc)mPage=pageOfQ(qloc.s,qloc.a);renderMushaf();mushafTop();toast(isH()?"مصحف حفص: للقراءة والمراجعة فقط":"مصحف قالون");});
 }
+// ---- Where Qalun differs from Hafs (huffaz mode, Qalun mushaf): a small dot on the word, both readings in the ayah panel ----
+let QHD=null, qhdLoading=null, qhShow=(()=>{try{return localStorage.getItem("quran-qh")!=="0";}catch(e){return true;}})();
+function qhOn(){return qhShow&&HUF()&&!isH();}
+function qhLoad(){
+  if(QHD||qhdLoading) return;
+  qhdLoading=fetch("qh.json").then(r=>{if(!r.ok)throw new Error("http");return r.json();}).then(d=>{
+    QHD=new Map(); for(const e of d.d){const k=e[0]+":"+e[1];if(!QHD.has(k))QHD.set(k,[]);QHD.get(k).push(e);}
+    if(view==="mushaf")renderMushaf();
+  }).catch(()=>{qhdLoading=null;});
+}
+function qhAt(sn,a){if(!qhOn())return [];if(!QHD){qhLoad();return [];}return QHD.get(sn+":"+a)||[];}
+const QH_KIND={"فرش الحروف":"اختلاف في حروف الكلمة أو حركاتها.","الهمز":"اختلاف في الهمز: تحقيقه أو تسهيله أو إبداله أو حذفه، أو إدخال ألف بين الهمزتين.","إسكان الهاء وضمّها":"قالون يسكّن الهاء بعد الواو والفاء واللام (وَهْوَ، فَهْيَ)، وحفص يحرّكها.","ياء الإضافة":"اختلاف في فتح ياء الإضافة وإسكانها."};
+function qhBoxHTML(L){
+  const es=qhAt(L.s,L.a).filter(e=>L.w===null||(e[2]<=(L.we??L.w)&&e[3]>=L.w)); if(!es.length) return "";
+  const W=ayaParts(Q.t[L.s-1][L.a-1]).words;
+  return `<div class="qh-box"><div class="qh-t">الخلاف مع رواية حفص${L.w===null&&es.length>1?" ("+es.length+")":""}</div>${es.map(e=>`<div class="qh-it">
+    <div class="qh-row"><span class="qh-l">قالون</span><span class="qh-q">${esc(W.slice(e[2],e[3]+1).join(" "))}</span></div>
+    <div class="qh-row"><span class="qh-l">حفص</span><span class="qh-h">${esc(e[4])}</span></div>
+    <div class="qh-k"><b>${esc(e[5])}</b> · ${esc(QH_KIND[e[5]]||"")}</div></div>`).join("")}
+    <p class="help" style="margin:4px 0 0">مقارنة آلية بين نصَّي مجمع الملك فهد للروايتين.</p></div>`;
+}
 function setView(v){const changed=view!==v;view=v;document.querySelectorAll(".tabbar button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));document.querySelectorAll(".icon-btn[data-go=settings]").forEach(x=>x.classList.toggle("on",v==="settings"));render();if(changed)window.scrollTo(0,0);}
 function openMushaf(sn,from,to){
   afterQ().then(()=>{mPage=pageOfQ(sn,from);mHi=isH()?{s:sn,from:q2h(sn,from),to:q2h(sn,to)}:{s:sn,from,to};clearRev();mScroll=true;setView("mushaf");window.scrollTo(0,0);})
@@ -98,8 +119,8 @@ function shownWords(sn,a,len){const k=sn+":"+a;if(revealed.has(k))return Math.mi
 function ayaHTML(sn,a){
   const H=isH(); const {words,num}=ayaParts(MD().t[sn-1][a-1]); const shown=shownWords(sn,a,words.length);
   const SG=segMode(); let vis=null; if(SG){const sa=waqfSegs(sn,a),rs=revSeg.get(sn+":"+a)||new Set();vis=new Array(words.length).fill(false);sa.forEach(([x,y],j)=>{if(rs.has(j))for(let i=x;i<=y;i++)vis[i]=true;});}
-  const m=H?null:state.mistakes[sn+":"+a]; const ms=H?{aya:false,words:new Set()}:mshOnAya(sn,a); const hiding=SG?vis.some(v=>!v):shown<words.length;
-  let h=words.map((w,i)=>{const cls=["w"];if(SG?!vis[i]:i>=shown)cls.push("hw");else{if(m&&m.w[i])cls.push(m.w[i]>=3?"werr2":"werr");if(ms.words.has(i))cls.push("wmsh");const inR=(l)=>l&&l.s===sn&&l.a===a&&l.w!==null&&i>=l.w&&i<=(l.we??l.w);if(inR(mSel))cls.push("wsel");if(inR(linkFrom))cls.push("wlink");if(inR(linkTo))cls.push("wsel");}
+  const DQ=H?[]:qhAt(sn,a); const m=H?null:state.mistakes[sn+":"+a]; const ms=H?{aya:false,words:new Set()}:mshOnAya(sn,a); const hiding=SG?vis.some(v=>!v):shown<words.length;
+  let h=words.map((w,i)=>{const cls=["w"];if(SG?!vis[i]:i>=shown)cls.push("hw");else{if(m&&m.w[i])cls.push(m.w[i]>=3?"werr2":"werr");if(ms.words.has(i))cls.push("wmsh");if(DQ.length&&DQ.some(e=>i>=e[2]&&i<=e[3]))cls.push("wqh");const inR=(l)=>l&&l.s===sn&&l.a===a&&l.w!==null&&i>=l.w&&i<=(l.we??l.w);if(inR(mSel))cls.push("wsel");if(inR(linkFrom))cls.push("wlink");if(inR(linkTo))cls.push("wsel");}
     return `<span class="${cls.join(" ")}" data-w="${i}">${esc(w)}</span>`;}).join(" ");
   const hasM=ms.aya||ms.words.size;
   return {html:h+`<span class="anum" data-anum="1">${esc(num)}</span>`+(hasM?`<button class="msh-mark" data-mshaya="${sn}:${a}" aria-label="متشابهات هذه الآية">≈</button>`:""),hiding};
@@ -173,6 +194,7 @@ function renderMushaf(){
       <button class="icon-nav ${mSearch.open?"on":""}" id="mSrchBtn" aria-label="بحث" title="بحث في المصحف" style="font-size:16px">🔍</button>
       <button class="icon-nav ${mFit?"on":""}" id="mFitBtn" aria-label="${mFit?"صفحة كاملة (اضغط للخط الكبير)":"خط كبير (اضغط للصفحة الكاملة)"}" title="${mFit?"صفحة كاملة":"خط كبير"}" style="font-size:16px">${mFit?"📄":"🔠"}</button>
       ${THM?`<button class="icon-nav ${thOn?"on":""}" id="mThBtn" aria-label="ألوان الموضوعات" title="ألوان الموضوعات" style="font-size:16px">🎨</button>`:""}
+      ${HUF()&&!H?`<button class="icon-nav ${qhShow?"on":""}" id="mQhBtn" aria-label="الفروق مع رواية حفص" title="الفروق مع حفص" style="font-size:15px">⇄</button>`:""}
       ${HUF()?`<button class="icon-nav riw ${H?"on":""}" id="mRiwBtn" aria-label="الرواية: ${H?"حفص (اضغط لقالون)":"قالون (اضغط لحفص)"}" title="الرواية">${H?"حفص":"قالون"}</button>`:""}
       <div class="seg-ctl" role="group" aria-label="طريقة العرض">${["عرض","أول كلمة","إخفاء"].map((x,i)=>`<button data-mmode="${i}" class="${mMode===i?"on":""}">${x}</button>`).join("")}</div>
 
@@ -195,6 +217,7 @@ function renderMushaf(){
       const title=L.w!==null?esc(locLabel(L)):`${SURAHS[L.s-1][0]} ${L.a} · الآية كاملة`;
       return `<div class="aya-bar"><div class="t"><span class="ttl">${title}</span><button id="selClose" aria-label="إغلاق">✕</button></div>
       <div class="bar-acts"><button class="btn sm" id="selAdd" style="background:var(--red);color:#fff">✗ خطأ${c?" ("+c+")":""}</button>${c?`<button class="btn ghost sm" id="selDec" aria-label="إنقاص">−1</button><button class="btn ghost sm" id="selClr">إزالة الخطأ</button>`:""}<button class="btn ghost sm ${tfOpen?"on-occ":""}" id="tfBtn">📖 تفسير</button>${(()=>{const n=simAll(L.s,L.a).length;return n?`<button class="btn ghost sm ${mtOpen?"on-occ":""}" id="mtBtn">🔗 متشابهاتها (${n})</button>`:"";})()}<button class="btn ghost sm" id="mshAdd">≈ ${g?"موضع آخر":"متشابه"}</button>${(()=>{const O=occFor(L);return O.res.length?`<button class="btn ghost sm ${O.open?"on-occ":""}" id="occBtn">☰ تتكرر في ${O.res.length>=300?"300+":O.res.length}</button>`:`<span class="meta" style="font-size:12px">لا تتكرر في غيرها</span>`;})()}${L.w!==null?`<button class="linkbtn sm" id="selScope">الآية كاملة</button>`:""}</div>
+      ${qhBoxHTML(L)}
       ${tfBoxHTML(L)}
       ${(()=>{const O=occFor(L);if(!O.open||!O.res.length)return "";const shown=O.all?O.res:O.res.slice(0,30);
         return `<div class="occ"><div class="srch-top"><span class="meta">${L.w===null?"الآية نفسها":"«"+esc(locLabel(L).replace(/^.*«|»$/g,""))+"»"} في ${O.res.length>=300?"أكثر من 300 موضع":O.res.length===1?"موضع آخر":O.res.length+" مواضع أخرى"}</span>${O.res.length<=60?`<button class="linkbtn sm" id="occAll">${O.picked.size===O.res.length?"إلغاء الكل":"تحديد الكل"}</button>`:""}</div>
@@ -207,6 +230,7 @@ function renderMushaf(){
           ${noteEdit?`<textarea id="gNote" rows="2" placeholder="كيف تفرّق بينها؟">${esc(g.note)}</textarea><div class="bar-acts"><button class="btn sm" id="gNoteSave">حفظ الملاحظة</button><button class="linkbtn sm" id="gNoteCancel">إلغاء</button></div>`
             :`${g.note?`<div class="note" style="margin-top:4px">📝 ${esc(g.note)}</div>`:""}<div class="bar-acts"><button class="linkbtn sm" id="gNoteBtn">${g.note?"تعديل الملاحظة":"＋ ملاحظة للتفريق"}</button><button class="linkbtn sm" id="mshDel" style="color:var(--red)">إزالة من المتشابهات</button></div>`}</div>`:""}</div>`;})():""}
     <p class="src" id="mSrc">${H?"رواية حفص عن عاصم · النص والخط من مجمع الملك فهد لطباعة المصحف الشريف (الإصدار 18)":"رواية قالون عن نافع · النص والخط من مجمع الملك فهد لطباعة المصحف الشريف"}</p>`;
+  const qb=document.getElementById("mQhBtn"); if(qb) qb.onclick=()=>{qhShow=!qhShow;try{localStorage.setItem("quran-qh",qhShow?"1":"0");}catch(e){}renderMushaf();toast(qhShow?"تظهر علامة على الكلمات التي تختلف فيها رواية حفص":"أُخفيت علامات الخلاف مع حفص");};
   const rb=document.getElementById("mRiwBtn"); if(rb) rb.onclick=()=>setRiw(H?"q":"h");
   document.getElementById("mSura").onchange=e=>{const sn=Number(e.target.value);mPage=MD().p[sn-1][0];clearRev();mSel=null;renderMushaf();};
   document.getElementById("mPg").onchange=e=>goPage(e.target.value);
