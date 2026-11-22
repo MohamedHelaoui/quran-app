@@ -63,6 +63,6 @@ python3 tools/build_mut.py PATH/TO/mutashabiha_data.json mut.json
 
 ## بنية الملفات
 - `index.html`: الهيكل فقط.
-- `css/style.css`: كل التنسيق. `fonts/qaloon.woff2`: خط قالون.
+- `css/style.css`: كل التنسيق. `fonts/qaloon-v21.woff`: خط قالون (KFGQPC Qaloun Uthmanic Script، الإصدار 2.1).
 - `js/01-…21-*.js`: الشيفرة مقسّمة حسب الأجزاء (الحالة، المزامنة، المراجعة، المتشابهات، الختمة، المصحف، الأذكار…)، وتُحمَّل بهذا الترتيب. الملف الأخير `21-main.js` يبدأ التطبيق.
 - بعد أي تعديل: `python3 tools/bump.py` (يرفع رقم النسخة في `sw.js` وفي روابط css/js) حتى تأخذ الهواتف النسخة الجديدة.
