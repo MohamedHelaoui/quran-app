@@ -57,7 +57,7 @@ function qhBoxHTML(L){
     <div class="qh-k"><b>${esc(e[5])}</b> · ${esc(QH_KIND[e[5]]||"")}</div></div>`).join("")}
     <p class="help" style="margin:4px 0 0">مقارنة آلية بين نصَّي مجمع الملك فهد للروايتين.</p></div>`;
 }
-function setView(v){const changed=view!==v;view=v;document.body.classList.toggle("m-read",v==="mushaf"&&mRead);document.querySelectorAll(".tabbar button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));document.querySelectorAll(".icon-btn[data-go=settings]").forEach(x=>x.classList.toggle("on",v==="settings"));render();if(changed)window.scrollTo(0,0);}
+function setView(v){const changed=view!==v;view=v;document.body.classList.toggle("m-read",v==="mushaf"&&mRead);if(v!=="mushaf")document.body.classList.remove("m-spread");document.querySelectorAll(".tabbar button").forEach(x=>x.classList.toggle("on",x.dataset.v===v));document.querySelectorAll(".icon-btn[data-go=settings]").forEach(x=>x.classList.toggle("on",v==="settings"));render();if(changed)window.scrollTo(0,0);}
 function openMushaf(sn,from,to){
   afterQ().then(()=>{mPage=pageOfQ(sn,from);mHi=isH()?{s:sn,from:q2h(sn,from),to:q2h(sn,to)}:{s:sn,from,to};clearRev();mScroll=true;setView("mushaf");window.scrollTo(0,0);})
   .catch(()=>toast("تعذّر تحميل المصحف"));
@@ -108,7 +108,7 @@ document.addEventListener("touchstart",e=>{
 document.addEventListener("touchend",e=>{
   if(swX===null) return; const t=e.changedTouches[0]; const dx=t.clientX-swX, dy=t.clientY-swY; swX=null;
   if(Date.now()-swT>700||Math.abs(dx)<60||Math.abs(dx)<1.8*Math.abs(dy)) return;
-  const to=dx>0?mPage+1:mPage-1; if(to<1||to>604) return;
+  const to=dx>0?spreadPages()[0]+pgStep():spreadPages()[0]-pgStep(); if(to<1||to>604) return;
   clearTimeout(lpT); lpT=null; suppressClick=true; setTimeout(()=>{suppressClick=false;},400);
   goPage(to); mushafTop();
   const m=document.querySelector("#v-mushaf .mushaf"); if(m){m.classList.add(dx>0?"pg-in-l":"pg-in-r");}
@@ -135,19 +135,25 @@ function firstWordHTML(txt){
 let mFit=(()=>{try{return localStorage.getItem("quran-fit")!=="0";}catch(e){return true;}})();
 // reading view: only the page (and its topics) on the screen, everything else hidden; full-page fit is always on there
 let mRead=(()=>{try{return localStorage.getItem("quran-read")==="1";}catch(e){return false;}})();
-function fitOn(){return mFit||mRead;}
-function fitKey(){return [RIW,mRead?1:0,mPage,window.innerWidth,window.innerHeight,thOn?1:0,document.fonts&&document.fonts.status].join("|");}
+// a phone on its side is too short for a whole page: there the page keeps its normal size and scrolls
+function lowLand(){return window.innerWidth>window.innerHeight&&window.innerHeight<560;}
+function fitOn(){return (mFit||mRead)&&!lowLand();}
+// two pages side by side, like an open mushaf, on a wide screen (tablet or computer held sideways); a phone on its side keeps one page
+function isSpread(){return window.innerWidth>window.innerHeight&&window.innerWidth>=900&&window.innerHeight>=560;}
+function spreadPages(){if(!isSpread())return [mPage];const r=mPage%2?mPage:mPage-1;return r+1<=604?[r,r+1]:[r];}
+function pgStep(){return isSpread()?2:1;}
+function fitKey(){return [RIW,mRead?1:0,spreadPages().join("-"),window.innerWidth,window.innerHeight,thOn?1:0,document.fonts&&document.fonts.status].join("|");}
 function setRead(on){mRead=on;try{localStorage.setItem("quran-read",on?"1":"0");}catch(e){}renderMushaf();mushafTop();}
 const fitCache=new Map();
 function fitAvail(){const tb=document.querySelector(".tabbar");return window.innerHeight-(tb?tb.getBoundingClientRect().height:0)-10;}
 function fitMushaf(){
-  const card=document.querySelector("#v-mushaf .mushaf"); if(!card) return;
-  card.classList.toggle("fit",fitOn()); if(!fitOn()){card.style.removeProperty("--mfs");return;}
+  const card=document.querySelector("#v-mushaf .m-box"); if(!card) return;
+  if(card.classList.contains("mushaf")) card.classList.toggle("fit",fitOn()); if(!fitOn()){card.style.removeProperty("--mfs");return;}
   const key=fitKey();
   let fs=fitCache.get(key);
   if(fs===undefined){
     const lg=document.querySelector("#v-mushaf .th-leg");
-    const avail=fitAvail()-(lg?Math.max(0,card.getBoundingClientRect().top-lg.getBoundingClientRect().top):0); let lo=13,hi=Math.min(40,Math.max(24,Math.round(window.innerWidth/14)));
+    const avail=fitAvail()-(lg?Math.max(0,card.getBoundingClientRect().top-lg.getBoundingClientRect().top):0); let lo=13,hi=Math.min(40,Math.max(24,Math.round(window.innerWidth/(isSpread()?28:14))));
     const fits=v=>{card.style.setProperty("--mfs",v+"px");return card.getBoundingClientRect().height<=avail;};
     if(fits(hi)) fs=hi; else { while(hi-lo>0.5){const mid=(lo+hi)/2; if(fits(mid)) lo=mid; else hi=mid;} fs=Math.floor(lo*2)/2; }
     fitCache.set(key,fs);
@@ -156,7 +162,8 @@ function fitMushaf(){
 }
 // after turning a page: in full-page view bring the page itself to the top of the screen
 function mushafTop(){if(!fitOn()){window.scrollTo(0,0);return;}const c=document.querySelector("#v-mushaf .th-leg")||document.querySelector("#v-mushaf .mushaf");if(c)window.scrollTo(0,Math.max(0,c.getBoundingClientRect().top+window.scrollY-6));}
-window.addEventListener("resize",()=>{if(view==="mushaf"&&fitOn())fitMushaf();});
+let lastSpread=isSpread(), lastLow=lowLand();
+window.addEventListener("resize",()=>{if(view!=="mushaf")return;if(isSpread()!==lastSpread||lowLand()!==lastLow){lastLow=lowLand();renderMushaf();mushafTop();}else if(fitOn())fitMushaf();});
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{if(view==="mushaf"&&fitOn())fitMushaf();});
 function renderMushaf(){
   const el=document.getElementById("v-mushaf"); const keepY=window.scrollY;
@@ -172,11 +179,14 @@ function renderMushaf(){
     return;
   }
   const H=isH(); const qa=(sn,a)=>H?h2q(sn,a):a;
-  const list=MPI()[mPage]; const first=list[0];
+  const SP=spreadPages(), spread=SP.length>1; lastSpread=isSpread();
+  document.body.classList.toggle("m-spread",lastSpread);
+  const list=SP.flatMap(pg=>MPI()[pg]); const first=MPI()[SP[0]][0];
+  const thOnNow=!!(THM&&thOn);
+  const pageBody=(plist)=>{
   let body="", curTh=-1;
   const thClose=()=>{if(curTh>=0){body+=`</span>`;curTh=-1;}};
-  const thOnNow=!!(THM&&thOn);
-  for(const [sn,a] of list){
+  for(const [sn,a] of plist){
     if(a===1){ thClose(); body+=`</div><div class="s-head">سورة ${SURAHS[sn-1][0]}</div>${sn!==9&&!(H&&sn===1)?`<div class="basmala">${MD().b}</div>`:""}<div class="m-text">`; }
     const tq=sn+":"+qa(sn,a); const tk=thOnNow?(THM.at.has(tq)?THM.at.get(tq):-1):-1;
     if(tk!==curTh){thClose();if(tk>=0){body+=`<span class="thsec" data-th="${tk%8}">`;curTh=tk;}}
@@ -186,13 +196,22 @@ function renderMushaf(){
     body+=`<span class="aya${inHi?" hi":""}${A.hiding?" hiding":""}${!A.hiding&&wa?" err":""}${!A.hiding&&wa>=3?" err2":""}${!A.hiding&&msA?" amsh":""}${isSel?" sel":""}${isLink?" alink":""}" data-aya="${sn}:${a}">${A.html}</span> `;
   }
   thClose();
+  return (`<div class="m-text">`+body+`</div>`).replace(/<div class="m-text"><\/div>/g,"");
+  };
   let thLeg="";
   if(thOnNow){const seen=new Set(),multi=new Set(list.map(x=>x[0])).size>1;
     for(const [sn,a] of list){const k=THM.at.get(sn+":"+qa(sn,a));if(k===undefined||seen.has(k))continue;seen.add(k);const c=THM.secs[k];
       const f=H?q2h(c.s,c.from):c.from, t=H?Math.max(f,(QH.h[c.s-1][c.to-1]||[q2h(c.s,c.to)]).slice(-1)[0]):c.to;
       thLeg+=`<span class="th-chip" data-th="${k%8}">${multi?esc(SURAHS[c.s-1][0])+" · ":""}${c.t?`<span dir="auto">${esc(c.t)}</span>`:"آيات"}<i dir="ltr">${f===t?f:f+"–"+t}</i></span>`;}
     if(thLeg)thLeg=`<div class="th-leg${fitOn()?" one":""}" aria-label="موضوعات الصفحة">${thLeg}</div>`;}
-  body=(`<div class="m-text">`+body+`</div>`).replace(/<div class="m-text"><\/div>/g,"");
+  const cls=`mushaf${segMode()?" seg-mode":""}${H?" hafs":""}${fitOn()?" fit":""}`;
+  const fsSt=fitOn()&&fitCache.has(fitKey())?` style="--mfs:${fitCache.get(fitKey())}px"`:"";
+  const foot=`<div class="m-foot"><button class="btn ghost" id="mPrev" ${SP[0]<=1?"disabled":""}>→ السابقة</button><span>${SP.join(" – ")}</span><button class="btn ghost" id="mNext" ${SP[SP.length-1]>=604?"disabled":""}>التالية ←</button></div>`;
+  const pagesHTML=spread
+    ?`<div class="m-box m-spreadbox"${fsSt}><div class="spread">${SP.map(pg=>`<div class="${cls}">${pageBody(MPI()[pg])}<div class="m-pn">${pg}</div></div>`).join("")}</div>${foot}</div>`
+    :`<div class="${cls} m-box"${fsSt}>${pageBody(list)}
+      ${foot}
+    </div>`;
   const opts=SURAHS.map((x,i)=>`<option value="${i+1}" ${first&&first[0]===i+1?"selected":""}>${i+1}. ${x[0]}</option>`).join("");
   el.innerHTML=`<div class="m-bar">
       <select id="mSura" aria-label="السورة">${opts}</select>
@@ -213,9 +232,7 @@ function renderMushaf(){
     ${searchPanelHTML()}
     ${thLeg}
     ${mRead?`<button class="m-readx" id="mReadX" aria-label="خروج من ملء الشاشة">✕</button>`:""}
-    <div class="mushaf${segMode()?" seg-mode":""}${H?" hafs":""}${fitOn()?" fit":""}"${fitOn()&&fitCache.has(fitKey())?` style="--mfs:${fitCache.get(fitKey())}px"`:""}>${body}
-      <div class="m-foot"><button class="btn ghost" id="mPrev" ${mPage<=1?"disabled":""}>→ السابقة</button><span>${mPage}</span><button class="btn ghost" id="mNext" ${mPage>=604?"disabled":""}>التالية ←</button></div>
-    </div>
+    ${pagesHTML}
     ${mHi?`<p class="help" style="text-align:center">المقطع المظلّل: سورة ${SURAHS[mHi.s-1][0]}، الآيات ${mHi.from}–${mHi.to} <button class="linkbtn" id="mClearHi">إزالة التظليل</button></p>`:""}
     ${mSel&&!linkFrom&&H?(()=>{const L=mSel;const Lq={s:L.s,a:h2q(L.s,L.a),w:null};
       return `<div class="aya-bar"><div class="t"><span class="ttl">${SURAHS[L.s-1][0]} ${L.a} · حفص</span><button id="selClose" aria-label="إغلاق">✕</button></div>
@@ -248,8 +265,8 @@ function renderMushaf(){
   const rx=document.getElementById("mReadX"); if(rx) rx.onclick=()=>setRead(false);
   document.getElementById("mFitBtn").onclick=()=>{mFit=!mFit;try{localStorage.setItem("quran-fit",mFit?"1":"0");}catch(e){}renderMushaf();if(mFit)mushafTop();toast(mFit?"الصفحة كاملة على الشاشة":"خط كبير، مع التمرير");};
   const thb=document.getElementById("mThBtn"); if(thb) thb.onclick=()=>{thOn=!thOn;try{localStorage.setItem("quran-th-on",thOn?"1":"0");}catch(e){}renderMushaf();};
-  document.getElementById("mPrev").onclick=()=>{goPage(mPage-1);mushafTop();};
-  document.getElementById("mNext").onclick=()=>{goPage(mPage+1);mushafTop();};
+  document.getElementById("mPrev").onclick=()=>{goPage(spreadPages()[0]-pgStep());mushafTop();};
+  document.getElementById("mNext").onclick=()=>{goPage(spreadPages()[0]+pgStep());mushafTop();};
   const ch=document.getElementById("mClearHi"); if(ch) ch.onclick=()=>{mHi=null;renderMushaf();};
   const lc=document.getElementById("linkCancel"); if(lc) lc.onclick=()=>{mSel=linkFrom;linkFrom=null;linkTo=null;renderMushaf();};
   const lo=document.getElementById("linkOk"); if(lo) lo.onclick=()=>{const T=cleanLoc(linkTo);if(sameLoc(cleanLoc(linkFrom),T)){toast("اختر موضعًا آخر");return;}linkLocs(cleanLoc(linkFrom),T);toast("رُبط "+locLabel(linkFrom)+" بـ "+locLabel(T));linkFrom=null;linkTo=null;mSel=T;selAnchor=null;noteEdit=!(groupOf(T)||{}).note;renderMushaf();};
@@ -286,6 +303,6 @@ function renderMushaf(){
 }
 document.addEventListener("keydown",e=>{
   if(view!=="mushaf"||!Q||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
-  if(e.key==="ArrowLeft")goPage(mPage+1); else if(e.key==="ArrowRight")goPage(mPage-1);
+  if(e.key==="ArrowLeft"){if(spreadPages().slice(-1)[0]<604)goPage(spreadPages()[0]+pgStep());} else if(e.key==="ArrowRight"){if(spreadPages()[0]>1)goPage(spreadPages()[0]-pgStep());}
 });
 

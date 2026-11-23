@@ -451,3 +451,10 @@ body.m-read .wrap{padding-top:calc(env(safe-area-inset-top,0px) + 6px);padding-b
 body.m-read .aya-bar{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
 .m-readx{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;z-index:30;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 70%,transparent);color:var(--muted);font-size:14px;cursor:pointer;opacity:.75;backdrop-filter:blur(4px)}
 body.m-read #v-mushaf .th-leg{padding-left:38px}
+
+/* two pages side by side (wide screens): odd page on the right, like a printed mushaf */
+body.m-spread .wrap{max-width:1500px}
+.spread{display:flex;gap:14px;align-items:stretch}
+.spread>.mushaf{flex:1 1 0;min-width:0;margin:0;display:flex;flex-direction:column}
+.spread>.mushaf .m-pn{margin-top:auto;text-align:center;font-size:13px;color:var(--muted);padding-top:4px}
+.m-spreadbox>.m-foot{margin-top:10px}
