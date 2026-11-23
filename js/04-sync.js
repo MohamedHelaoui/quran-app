@@ -34,9 +34,23 @@ async function startUser(u){
       const d=p.new&&p.new.data; if(!d) return; const r=normalize(d); if(r.updatedAt>state.updatedAt&&!saveTimer&&!saving) adoptRemote(r); }).subscribe();
   }catch(e){}
 }
+// a saved session whose token could not be refreshed (no network): keep working on this device's copy
+let offStart=false;
+function storedUser(){
+  try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i);
+    if(/^sb-.+-auth-token$/.test(k)){ const j=JSON.parse(localStorage.getItem(k)||"null"); const u=j&&(j.user||(j.currentSession&&j.currentSession.user)); if(u&&u.id) return u; } } }catch(e){}
+  return null;
+}
+function startOffline(u){
+  offStart=true; sbUser=u; LS_KEY="quran-review-v1:"+u.id; dbRef=stateRef(u.id); hideAuth();
+  const l=lsLoad(); state=l?normalize(l):freshState(); modeReady=true; render(); setSync("warn");
+  toast("لا يوجد اتصال؛ تعمل على نسختك في هذا الجهاز وتُرسَل التغييرات لاحقًا");
+}
 async function resync(){ if(!sbUser||!dbRef) return; if(unsent()&&!saving){ await flush(); } await pullRemote(); }
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)resync();});
-window.addEventListener("online",()=>{toast("عاد الاتصال، تُرسَل تغييراتك");resync();});
+window.addEventListener("online",()=>{toast("عاد الاتصال، تُرسَل تغييراتك");
+  if(offStart&&sb){ offStart=false; sb.auth.getSession().then(r=>{const ss=r&&r.data&&r.data.session; if(ss){ sbUser=null; startUser(ss.user); } else resync(); }).catch(()=>{offStart=true;}); }
+  else resync(); });
 window.addEventListener("offline",()=>{setSync("warn");});
 async function signOut(){try{await sb.auth.signOut();}catch(e){} try{localStorage.removeItem("qa-guest");}catch(e){} location.reload();}
 
@@ -85,6 +99,7 @@ async function initDb(){
   });
   const {data:{session}}=await sb.auth.getSession();
   if(session){ if(!sbUser) startUser(session.user); }
+  else if(storedUser()){ startOffline(storedUser()); }
   else { let guest=false; try{guest=!!localStorage.getItem("qa-guest");}catch(e){} if(guest) startLocal(); else { render(); showAuth("login"); } }
 }
 
