@@ -80,3 +80,10 @@ python3 tools/build_hafs.py PATH/TO/hafsData_v18.json hafs.json
 ```
 python3 tools/build_qh.py
 ```
+
+## المصحف بخمسة عشر سطرًا
+زرّ «١٥» في المصحف: كل سطر كما في المصحف المطبوع (قالون، وحفص في وضع الحفّاظ). `lines.json` (ومفتاح `l` في `hafs.json`) فيه سطر بداية كل آية ونهايتها من بيانات المجمع، وما بين ذلك تُوزَّع كلمات الآية الطويلة على أسطرها حسب عرضها بخط المصحف (تقريبي داخل الآيات الطويلة، دقيق عند أطرافها). المنطق في `js/19b-lines.js`.
+
+```
+python3 tools/build_lines.py PATH/TO/QaloonData_v10.json PATH/TO/hafsData_v18.json
+```
