@@ -131,6 +131,8 @@ document.addEventListener("touchend",e=>{
   goPage(to); mushafTop();
   const m=document.querySelector("#v-mushaf .mushaf"); if(m){m.classList.add(dx>0?"pg-in-l":"pg-in-r");}
 },{passive:true});
+// ayah numbers are shown with ordinary digits (1 2 3) inside a drawn circle
+function latNum(n){return n.replace(/[\u0660-\u0669]/g,d=>String(d.charCodeAt(0)-1632)).replace(/\u00a0/g,"");}
 function ayaParts(txt){const m=txt.match(/^([\s\S]*?)(\u00a0[\u0660-\u0669]+)$/);const body=m?m[1]:txt;return {words:body.split(" "),num:m?m[2]:""};}
 // how many words of an ayah are shown in the current mode
 function shownWords(sn,a,len){const k=sn+":"+a;if(revealed.has(k))return Math.min(len,revealed.get(k));return mMode===2?0:mMode===1?1:len;}
@@ -141,7 +143,7 @@ function ayaHTML(sn,a){
   const ws=words.map((w,i)=>{const cls=["w"];if(SG?!vis[i]:i>=shown)cls.push("hw");else{if(m&&m.w[i])cls.push(m.w[i]>=3?"werr2":"werr");if(ms.words.has(i))cls.push("wmsh");if(DQ.length&&DQ.some(e=>i>=e[2]&&i<=e[3]))cls.push("wqh");const inR=(l)=>l&&l.s===sn&&l.a===a&&l.w!==null&&i>=l.w&&i<=(l.we??l.w);if(inR(mSel))cls.push("wsel");if(inR(linkFrom))cls.push("wlink");if(inR(linkTo))cls.push("wsel");}
     return `<span class="${cls.join(" ")}" data-w="${i}">${esc(w)}</span>`;});
   const hasM=ms.aya||ms.words.size;
-  const tail=`<span class="anum" data-anum="1">${esc(num)}</span>`+(hasM?`<button class="msh-mark" data-mshaya="${sn}:${a}" aria-label="متشابهات هذه الآية">≈</button>`:"");
+  const tail=`<span class="anum" data-anum="1">\u00a0<span class="ao">${esc(latNum(num))}</span></span>`+(hasM?`<button class="msh-mark" data-mshaya="${sn}:${a}" aria-label="متشابهات هذه الآية">≈</button>`:"");
   const parts=ws.slice(); parts[parts.length-1]+=tail;   // word by word, for the 15-line page
   return {html:ws.join(" ")+tail,parts,hiding};
 }

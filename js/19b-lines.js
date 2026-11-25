@@ -20,6 +20,8 @@ function on15(){
   return true;
 }
 function lnData(){return isH()?QH.l:LNQ;}
+// width of the drawn ayah-number circle (see .ao in the css), in the same 100px units
+function numW(n){const d=latNum(n).length;return 100*(0.3+0.62*(0.2+d*0.58+0.7));}
 function wWidth(t){
   const f=lnFont(), k=f+"|"+t; let v=WCACHE.get(k);
   if(v===undefined){if(!mCtx)mCtx=document.createElement("canvas").getContext("2d");mCtx.font="100px "+f;v=mCtx.measureText(t).width;WCACHE.set(k,v);}
@@ -37,7 +39,7 @@ function build15(pg){
   for(const [sn,a] of MPI()[pg]){const r=LD[sn-1][a-1]; const P=wordsOf(sn,a); items.push({sn,a,ls:r[0],le:r[2]?n:r[1],w0:0,w1:P.words.length-1,out:!!r[2],P});}
   // tokens: one per word, the ayah number joined to its last word
   const toks=[], sp=wWidth(" ");
-  items.forEach((it,k)=>{it.t0=toks.length;for(let w=it.w0;w<=it.w1;w++)toks.push({k,w,wd:wWidth(it.P.words[w])+(w===it.P.words.length-1?wWidth(it.P.num):0)});it.t1=toks.length-1;});
+  items.forEach((it,k)=>{it.t0=toks.length;for(let w=it.w0;w<=it.w1;w++)toks.push({k,w,wd:wWidth(it.P.words[w])+(w===it.P.words.length-1?numW(it.P.num):0)});it.t1=toks.length-1;});
   const pre=[0]; toks.forEach(t=>pre.push(pre[pre.length-1]+t.wd));
   const segW=(s,e)=>e>s?pre[e]-pre[s]+(e-s-1)*sp:0;
   const used=[]; for(let L=1;L<=n;L++) used.push(items.some(it=>it.ls<=L&&L<=it.le));

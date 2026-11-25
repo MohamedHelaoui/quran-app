@@ -472,3 +472,5 @@ body.m-spread .wrap{max-width:1500px}
 .m-step{position:fixed;right:10px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;display:flex;flex-direction:column;gap:8px}
 .m-step button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 85%,transparent);color:var(--fg,inherit);font-size:18px;cursor:pointer;backdrop-filter:blur(4px);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .m-step button:active{transform:scale(.94)}
+
+.anum .ao{display:inline-block;box-sizing:border-box;min-width:1.7em;padding:0 .28em;height:1.7em;line-height:1.55em;border:1.5px solid var(--gold-leaf);border-radius:999px;text-align:center;font:600 .62em/1.55em system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--gold);vertical-align:middle;margin:0 .15em;direction:ltr;unicode-bidi:isolate;font-variant-numeric:lining-nums}
