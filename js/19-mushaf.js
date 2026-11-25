@@ -132,6 +132,7 @@ document.addEventListener("touchend",e=>{
   const m=document.querySelector("#v-mushaf .mushaf"); if(m){m.classList.add(dx>0?"pg-in-l":"pg-in-r");}
 },{passive:true});
 // ayah numbers are shown with ordinary digits (1 2 3) inside a drawn circle
+let numLat=(()=>{try{return localStorage.getItem("quran-num")!=="a";}catch(e){return true;}})();
 function latNum(n){return n.replace(/[\u0660-\u0669]/g,d=>String(d.charCodeAt(0)-1632)).replace(/\u00a0/g,"");}
 function ayaParts(txt){const m=txt.match(/^([\s\S]*?)(\u00a0[\u0660-\u0669]+)$/);const body=m?m[1]:txt;return {words:body.split(" "),num:m?m[2]:""};}
 // how many words of an ayah are shown in the current mode
@@ -143,7 +144,7 @@ function ayaHTML(sn,a){
   const ws=words.map((w,i)=>{const cls=["w"];if(SG?!vis[i]:i>=shown)cls.push("hw");else{if(m&&m.w[i])cls.push(m.w[i]>=3?"werr2":"werr");if(ms.words.has(i))cls.push("wmsh");if(DQ.length&&DQ.some(e=>i>=e[2]&&i<=e[3]))cls.push("wqh");const inR=(l)=>l&&l.s===sn&&l.a===a&&l.w!==null&&i>=l.w&&i<=(l.we??l.w);if(inR(mSel))cls.push("wsel");if(inR(linkFrom))cls.push("wlink");if(inR(linkTo))cls.push("wsel");}
     return `<span class="${cls.join(" ")}" data-w="${i}">${esc(w)}</span>`;});
   const hasM=ms.aya||ms.words.size;
-  const tail=`<span class="anum" data-anum="1">\u00a0<span class="ao">${esc(latNum(num))}</span></span>`+(hasM?`<button class="msh-mark" data-mshaya="${sn}:${a}" aria-label="متشابهات هذه الآية">≈</button>`:"");
+  const tail=`<span class="anum" data-anum="1">${numLat?`\u00a0<span class="ao">${esc(latNum(num))}</span>`:esc(num)}</span>`+(hasM?`<button class="msh-mark" data-mshaya="${sn}:${a}" aria-label="متشابهات هذه الآية">≈</button>`:"");
   const parts=ws.slice(); parts[parts.length-1]+=tail;   // word by word, for the 15-line page
   return {html:ws.join(" ")+tail,parts,hiding};
 }
@@ -257,6 +258,7 @@ function renderMushaf(){
       <button class="icon-nav ${mSearch.open?"on":""}" id="mSrchBtn" aria-label="بحث" title="بحث في المصحف" style="font-size:16px">🔍</button>
       <button class="icon-nav" id="mReadBtn" aria-label="ملء الشاشة: الصفحة وحدها" title="ملء الشاشة" style="font-size:16px">⛶</button>
       <button class="icon-nav ${m15?"on":""}" id="m15Btn" aria-label="${m15?"15 سطرًا كالمصحف المطبوع (اضغط للنص المتصل)":"نص متصل (اضغط لـ15 سطرًا كالمصحف المطبوع)"}" title="${m15?"15 سطرًا":"نص متصل"}" style="font:600 12px 'Readex Pro',sans-serif">١٥</button>
+      <button class="icon-nav ${numLat?"on":""}" id="mNumBtn" aria-label="${numLat?"أرقام الآيات 1 2 3 (اضغط للأرقام الهندية)":"أرقام الآيات الهندية (اضغط لـ 1 2 3)"}" title="أرقام الآيات" style="font:600 11px 'Readex Pro',sans-serif">${numLat?"123":"١٢٣"}</button>
       <button class="icon-nav ${mFit?"on":""}" id="mFitBtn" aria-label="${mFit?"صفحة كاملة (اضغط للخط الكبير)":"خط كبير (اضغط للصفحة الكاملة)"}" title="${mFit?"صفحة كاملة":"خط كبير"}" style="font-size:16px">${mFit?"📄":"🔠"}</button>
       ${THM?`<button class="icon-nav ${thOn?"on":""}" id="mThBtn" aria-label="ألوان الموضوعات" title="ألوان الموضوعات" style="font-size:16px">🎨</button>`:""}
       ${HUF()&&!H?`<button class="icon-nav ${qhShow?"on":""}" id="mQhBtn" aria-label="الفروق مع رواية حفص" title="الفروق مع حفص" style="font-size:15px">⇄</button>`:""}
@@ -304,6 +306,7 @@ function renderMushaf(){
   document.getElementById("mReadBtn").onclick=()=>{setRead(true);toast("ملء الشاشة · ✕ في الأعلى للخروج");};
   const su=document.getElementById("mStepUp"),sd=document.getElementById("mStepDn"); if(su) su.onclick=()=>stepPhrase(-1); if(sd) sd.onclick=()=>stepPhrase(1);
   const rx=document.getElementById("mReadX"); if(rx) rx.onclick=()=>setRead(false);
+  document.getElementById("mNumBtn").onclick=()=>{numLat=!numLat;try{localStorage.setItem("quran-num",numLat?"l":"a");}catch(e){}renderMushaf();toast(numLat?"أرقام الآيات: 1 2 3":"أرقام الآيات: ١ ٢ ٣");};
   document.getElementById("m15Btn").onclick=()=>{m15=!m15;try{localStorage.setItem("quran-15",m15?"1":"0");}catch(e){}renderMushaf();mushafTop();toast(m15?"15 سطرًا كالمصحف المطبوع":"نص متصل");};
   document.getElementById("mFitBtn").onclick=()=>{mFit=!mFit;try{localStorage.setItem("quran-fit",mFit?"1":"0");}catch(e){}renderMushaf();if(mFit)mushafTop();toast(mFit?"الصفحة كاملة على الشاشة":"خط كبير، مع التمرير");};
   const thb=document.getElementById("mThBtn"); if(thb) thb.onclick=()=>{thOn=!thOn;try{localStorage.setItem("quran-th-on",thOn?"1":"0");}catch(e){}renderMushaf();};

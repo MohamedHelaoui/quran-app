@@ -21,7 +21,7 @@ function on15(){
 }
 function lnData(){return isH()?QH.l:LNQ;}
 // width of the drawn ayah-number circle (see .ao in the css), in the same 100px units
-function numW(n){const d=latNum(n).length;return 100*(0.3+0.62*(0.2+d*0.58+0.7));}
+function numW(n){if(!numLat)return wWidth(n);const d=latNum(n).length;return 100*(0.3+0.62*(0.2+d*0.58+0.7));}
 function wWidth(t){
   const f=lnFont(), k=f+"|"+t; let v=WCACHE.get(k);
   if(v===undefined){if(!mCtx)mCtx=document.createElement("canvas").getContext("2d");mCtx.font="100px "+f;v=mCtx.measureText(t).width;WCACHE.set(k,v);}
