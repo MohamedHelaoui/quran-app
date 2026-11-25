@@ -75,6 +75,24 @@ function segTap(sn,a,w){
   else {const nx=sa.findIndex((_,i)=>!set.has(i)); if(nx>=0) set.add(nx);}  // otherwise: show the next phrase
   renderMushaf();
 }
+// reading view + hide mode: ▼ shows the next phrase of the page, ▲ hides the last shown one (works across ayat)
+function stepPhrase(dir){
+  if(!segMode()||!Q) return;
+  const order=spreadPages().flatMap(pg=>MPI()[pg]); let target=null;
+  if(dir>0){
+    for(const [sn,a] of order){const n=waqfSegs(sn,a).length,set=revSeg.get(sn+":"+a);if(!set||set.size<n){target={sn,a};break;}}
+    if(!target){ if(spreadPages().slice(-1)[0]<604){goPage(spreadPages()[0]+pgStep());} return; }
+    const sa=waqfSegs(target.sn,target.a); let set=revSeg.get(target.sn+":"+target.a); if(!set){set=new Set();revSeg.set(target.sn+":"+target.a,set);}
+    const nx=sa.findIndex((_,i)=>!set.has(i)); if(nx>=0) set.add(nx);
+  } else {
+    for(let i=order.length-1;i>=0;i--){const [sn,a]=order[i],set=revSeg.get(sn+":"+a);if(set&&set.size){target={sn,a};break;}}
+    if(!target) return;
+    const set=revSeg.get(target.sn+":"+target.a); set.delete(Math.max(...set)); 
+  }
+  renderMushaf();
+  const sp=document.querySelectorAll('.aya[data-aya="'+target.sn+':'+target.a+'"]'); const e=sp[sp.length-1];
+  if(e){const r=e.getBoundingClientRect(); if(r.bottom>window.innerHeight-70||r.top<0) e.scrollIntoView({block:"center"});}
+}
 // long press on a word: show its phrase and select the word (panel: error, similar places)
 function lpSelect(sn,a,w){
   const k=sn+":"+a; const sa=waqfSegs(sn,a); let set=revSeg.get(k); if(!set){set=new Set();revSeg.set(k,set);}
@@ -251,6 +269,7 @@ function renderMushaf(){
     ${searchPanelHTML()}
     ${thLeg}
     ${mRead?`<button class="m-readx" id="mReadX" aria-label="خروج من ملء الشاشة">✕</button>`:""}
+    ${mRead&&segMode()?`<div class="m-step"><button id="mStepUp" aria-label="إخفاء آخر جملة">▲</button><button id="mStepDn" aria-label="إظهار الجملة التالية">▼</button></div>`:""}
     ${pagesHTML}
     ${mHi?`<p class="help" style="text-align:center">المقطع المظلّل: سورة ${SURAHS[mHi.s-1][0]}، الآيات ${mHi.from}–${mHi.to} <button class="linkbtn" id="mClearHi">إزالة التظليل</button></p>`:""}
     ${mSel&&!linkFrom&&H?(()=>{const L=mSel;const Lq={s:L.s,a:h2q(L.s,L.a),w:null};
@@ -281,6 +300,7 @@ function renderMushaf(){
   document.getElementById("mSrchBtn").onclick=()=>{mSearch.open=!mSearch.open;renderMushaf();const i=document.getElementById("sQ");if(i)i.focus();};
   bindSearch();
   document.getElementById("mReadBtn").onclick=()=>{setRead(true);toast("ملء الشاشة · ✕ في الأعلى للخروج");};
+  const su=document.getElementById("mStepUp"),sd=document.getElementById("mStepDn"); if(su) su.onclick=()=>stepPhrase(-1); if(sd) sd.onclick=()=>stepPhrase(1);
   const rx=document.getElementById("mReadX"); if(rx) rx.onclick=()=>setRead(false);
   document.getElementById("m15Btn").onclick=()=>{m15=!m15;try{localStorage.setItem("quran-15",m15?"1":"0");}catch(e){}renderMushaf();mushafTop();toast(m15?"15 سطرًا كالمصحف المطبوع":"نص متصل");};
   document.getElementById("mFitBtn").onclick=()=>{mFit=!mFit;try{localStorage.setItem("quran-fit",mFit?"1":"0");}catch(e){}renderMushaf();if(mFit)mushafTop();toast(mFit?"الصفحة كاملة على الشاشة":"خط كبير، مع التمرير");};
@@ -323,6 +343,7 @@ function renderMushaf(){
 }
 document.addEventListener("keydown",e=>{
   if(view!=="mushaf"||!Q||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+  if(mRead&&segMode()&&(e.key==="ArrowDown"||e.key==="ArrowUp")){e.preventDefault();stepPhrase(e.key==="ArrowDown"?1:-1);return;}
   if(e.key==="ArrowLeft"){if(spreadPages().slice(-1)[0]<604)goPage(spreadPages()[0]+pgStep());} else if(e.key==="ArrowRight"){if(spreadPages()[0]>1)goPage(spreadPages()[0]-pgStep());}
 });
 
