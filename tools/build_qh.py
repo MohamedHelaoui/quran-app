@@ -40,13 +40,19 @@ def kind(a, b):
     return "فرش الحروف"
 words = lambda t: num.sub("", t).split(" ")
 hasv = re.compile("[" + V + "]")
+TQ = {"ً": "F", "ٗ": "F", "ࣰ": "F", "ٌ": "D", "ٞ": "D", "ࣱ": "D", "ٍ": "K", "ٖ": "K", "ࣲ": "K"}
+tan = lambda w: "".join(TQ[c] for c in w if c in TQ)
 out = []
 for s in range(114):
     Q = [(a + 1, i, w) for a, t in enumerate(q["t"][s]) for i, w in enumerate(words(t))]
     H = [(a + 1, i, w) for a, t in enumerate(h["t"][s]) for i, w in enumerate(words(t))]
     nq = [norm(x[2]) for x in Q]; nh = [norm(x[2]) for x in H]
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, nq, nh, autojunk=False).get_opcodes():
-        if op == "equal": continue
+        if op == "equal":                                  # same word, but a different case ending (raf' / nasb / jarr: tanween type)
+            for k in range(i2 - i1):
+                a, b = Q[i1 + k], H[j1 + k]; ta, tb = tan(a[2]), tan(b[2])
+                if ta and tb and ta != tb and a[2]: out.append([s + 1, a[0], a[1], a[1], b[2], "حركة الإعراب", b[0]])
+            continue
         if j2 > j1 and not any(hasv.search(x) for x in nh[j1:j2]): continue    # muqatta'at letters (unvowelled in Hafs)
         if i2 == i1:                                                          # word only in Hafs: show it on the previous Qalun word
             if i1 == 0: continue
