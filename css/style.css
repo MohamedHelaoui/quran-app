@@ -512,3 +512,6 @@ body.m-spread .wrap{max-width:1500px}
 .mp-agh summary{cursor:pointer;font-weight:600}
 .mp-agh ul{margin:8px 0;padding-inline-start:20px;line-height:1.9;font-size:14.5px}
 .mp-src{font-size:12px}
+.mp-grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 12px}
+.mp-gs{border:1px solid var(--line);background:var(--card);color:inherit;font:inherit;font-size:12.5px;border-radius:999px;padding:3px 10px;cursor:pointer}
+.mp-gs.on{background:var(--indigo);color:#fff;border-color:var(--indigo)}
