@@ -56,7 +56,8 @@ function renderMaps(){
       <button class="btn ghost sm" id="mpMushaf">📖 المصحف</button>
     </div>
     <h2 class="mp-title">سورة ${SURAHS[sn-1][0]} <span class="meta">${SURAHS[sn-1][1]} آية</span></h2>
-    ${(MAPS.groups||[]).filter(g=>g.s.includes(sn)).map(g=>`<div class="mp-grp"><span class="meta">${esc(g.t)}:</span>${g.s.map((x,i)=>`<button class="mp-gs ${x===sn?"on":""}" data-mpsur="${x}">${i+1}. ${SURAHS[x-1][0]}</button>`).join("")}</div>`).join("")}
+    ${(MAPS.groups||[]).filter(g=>g.s.includes(sn)).map(g=>{const lg=g.s.length>10;const bs=g.s.map((x,i)=>`<button class="mp-gs ${x===sn?"on":""}" data-mpsur="${x}">${lg?x:i+1}. ${SURAHS[x-1][0]}</button>`).join("");
+      return lg?`<div class="mp-grp mp-long"><span class="meta">${esc(g.t)}:</span><div class="mp-gsc">${bs}</div></div>`:`<div class="mp-grp"><span class="meta">${esc(g.t)}:</span>${bs}</div>`;}).join("")}
     ${M?`<div class="mp-maqsad ${hid("q")?"mp-hid":""}" data-mpshow="q"><div class="mp-lbl">مقصد السورة</div>${hid("q")?`<div class="mp-q">ما مقصد السورة في جملة؟ <span class="meta">(اضغط للإظهار)</span></div>`:`<div>${esc(M.maqsad)}</div>`}</div>`
        :`<div class="mp-maqsad mp-none"><div class="mp-lbl">مقصد السورة</div><div class="meta">لم يُضَف مقصد هذه السورة بعد؛ هذه مقاطعها من مواضيع التطبيق.</div></div>`}
     ${chain.length>1&&!mapQuiz?`<div class="mp-chain">${chain.map(c=>`<span>${c}</span>`).join(`<i>←</i>`)}</div>`:""}
@@ -67,6 +68,7 @@ function renderMaps(){
   document.getElementById("mpSura").onchange=e=>openMap(Number(e.target.value));
   document.getElementById("mpQuiz").onclick=()=>{mapQuiz=!mapQuiz;mapShown.clear();renderMaps();};
   document.getElementById("mpMushaf").onclick=()=>openMushaf(sn,1,1);
+  el.querySelectorAll(".mp-gsc").forEach(c=>{const on=c.querySelector(".mp-gs.on");if(on)c.scrollLeft+=on.getBoundingClientRect().left-c.getBoundingClientRect().left-(c.clientWidth-on.offsetWidth)/2;});
   el.querySelectorAll("[data-mpsur]").forEach(b=>b.onclick=()=>{openMap(Number(b.dataset.mpsur));window.scrollTo(0,0);});
   el.querySelectorAll("[data-mpgo]").forEach(b=>b.onclick=e=>{e.stopPropagation();const [f,t]=b.dataset.mpgo.split(":").map(Number);openMushaf(sn,f,t);});
   el.querySelectorAll("[data-mpshow]").forEach(b=>b.onclick=()=>{if(!mapQuiz)return;const k=b.dataset.mpshow;if(mapShown.has(k))mapShown.delete(k);else mapShown.add(k);renderMaps();});
