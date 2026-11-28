@@ -124,8 +124,8 @@ ${HUF()?"":`
 let firstView=false;
 function render(){
   if(modeReady&&!firstView){firstView=true;if(HUF()&&view==="today"){setView("stats");return;}}
-  ["today","list","stats","mushaf","adhkar","khatma","settings","qada","mquiz","tests","week"].forEach(v=>document.getElementById("v-"+v).classList.toggle("hidden",v!==view));
-  if(view==="today") renderToday(); else if(view==="list") renderList(); else if(view==="mushaf") renderMushaf(); else if(view==="adhkar") renderAdhkar(); else if(view==="khatma") renderKhatma(); else if(view==="settings") renderSettings(); else if(view==="qada") renderQada(); else if(view==="mquiz") renderMQ(); else if(view==="tests") renderTests(); else if(view==="week") renderWeek(); else renderStats();
+  ["today","list","stats","mushaf","adhkar","khatma","settings","qada","mquiz","tests","week","maps"].forEach(v=>document.getElementById("v-"+v).classList.toggle("hidden",v!==view));
+  if(view==="today") renderToday(); else if(view==="list") renderList(); else if(view==="mushaf") renderMushaf(); else if(view==="adhkar") renderAdhkar(); else if(view==="khatma") renderKhatma(); else if(view==="settings") renderSettings(); else if(view==="qada") renderQada(); else if(view==="mquiz") renderMQ(); else if(view==="tests") renderTests(); else if(view==="week") renderWeek(); else if(view==="maps") renderMaps(); else renderStats();
   applyModeUI(); renderModePicker();
 }
 

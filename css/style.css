@@ -474,3 +474,41 @@ body.m-spread .wrap{max-width:1500px}
 .m-step button:active{transform:scale(.94)}
 
 .anum .ao{display:inline-block;box-sizing:border-box;min-width:1.7em;padding:0 .28em;height:1.7em;line-height:1.55em;border:1.5px solid var(--gold-leaf);border-radius:999px;text-align:center;font:600 .62em/1.55em system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--gold);vertical-align:middle;margin:0 .15em;direction:ltr;unicode-bidi:isolate;font-variant-numeric:lining-nums}
+
+/* surah maps (huffaz) */
+.tabbar .t-huf{display:none}
+.tabbar.c7{grid-template-columns:repeat(7,1fr)}
+.tabbar.c7 .t-huf{display:flex}
+.tabbar.c7 button{font-size:10.5px}
+.mp-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.mp-bar select{flex:1 1 100%;min-width:0}
+.mp-title{font-size:20px;margin:6px 0 10px}
+.mp-maqsad{background:var(--gold-soft);border:1px solid var(--gold-leaf);border-radius:16px;padding:14px 16px;font-size:16.5px;line-height:1.9;margin-bottom:12px;position:relative}
+.mp-maqsad.mp-none{background:var(--card);border-style:dashed}
+.mp-lbl{font-size:12px;font-weight:600;color:var(--gold);margin-bottom:4px}
+.mp-chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 14px;font-size:13px}
+.mp-chain span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.mp-chain i{font-style:normal;color:var(--muted)}
+.mp-mh{--c:#3f6fd8;border:1px solid var(--line);border-inline-start:4px solid var(--c);border-radius:14px;background:var(--card);padding:10px 12px 6px;margin-bottom:12px}
+.mp-c1{--c:#2e9a6a}.mp-c2{--c:#c0503a}.mp-c3{--c:#8a56c9}.mp-c4{--c:#c79a2b}.mp-c5{--c:#2f97b0}
+.mp-mhh{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
+.mp-n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--c);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+.mp-d{font-size:14px;line-height:1.8;color:var(--ink);opacity:.85;margin-top:2px}
+.mp-line{position:relative;padding-inline-start:12px;margin-inline-start:12px;border-inline-start:2px dashed color-mix(in srgb,var(--c) 45%,transparent)}
+.mp-node{display:flex;gap:10px;align-items:flex-start;padding:8px 0;position:relative}
+.mp-node::before{content:"";position:absolute;inset-inline-start:-19px;top:16px;width:10px;height:10px;border-radius:50%;background:var(--card);border:2px solid var(--c)}
+.mp-rng{flex:none;min-width:44px;text-align:center;font-size:12px;font-weight:600;color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent);border-radius:8px;padding:3px 6px;margin-top:2px;direction:ltr}
+.mp-body{flex:1;min-width:0}
+.mp-key{font-weight:600;font-size:15px;line-height:1.7}
+.mp-tt{font-size:13.5px;color:var(--muted);line-height:1.7}
+.mp-st{font-size:12.5px;color:var(--muted);margin-top:2px}
+.mp-ar{font-family:Qaloon,serif;font-size:17px;color:var(--ink)}
+.mp-go{flex:none;border:0;background:transparent;font-size:16px;cursor:pointer;padding:4px;opacity:.75}
+.mp-q{font-size:14px;color:var(--muted)}
+.mp-hid{cursor:pointer}
+.mp-hid .mp-q{border:1px dashed var(--line);border-radius:10px;padding:6px 10px}
+.mp-mhh[data-mpshow]{cursor:pointer}
+.mp-agh{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin:6px 0 10px}
+.mp-agh summary{cursor:pointer;font-weight:600}
+.mp-agh ul{margin:8px 0;padding-inline-start:20px;line-height:1.9;font-size:14.5px}
+.mp-src{font-size:12px}

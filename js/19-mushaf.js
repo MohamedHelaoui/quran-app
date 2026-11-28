@@ -256,6 +256,7 @@ function renderMushaf(){
       <select id="mSura" aria-label="السورة">${opts}</select>
       <label class="meta">صفحة <input type="number" id="mPg" min="1" max="604" value="${mPage}"></label>
       <button class="icon-nav ${mSearch.open?"on":""}" id="mSrchBtn" aria-label="بحث" title="بحث في المصحف" style="font-size:16px">🔍</button>
+      ${HUF()?`<button class="icon-nav" id="mMapBtn" aria-label="خريطة السورة" title="خريطة السورة" style="font-size:15px">🗺</button>`:""}
       <button class="icon-nav" id="mReadBtn" aria-label="ملء الشاشة: الصفحة وحدها" title="ملء الشاشة" style="font-size:16px">⛶</button>
       <button class="icon-nav ${m15?"on":""}" id="m15Btn" aria-label="${m15?"15 سطرًا كالمصحف المطبوع (اضغط للنص المتصل)":"نص متصل (اضغط لـ15 سطرًا كالمصحف المطبوع)"}" title="${m15?"15 سطرًا":"نص متصل"}" style="font:600 12px 'Readex Pro',sans-serif">١٥</button>
       <button class="icon-nav ${numLat?"on":""}" id="mNumBtn" aria-label="${numLat?"أرقام الآيات 1 2 3 (اضغط للأرقام الهندية)":"أرقام الآيات الهندية (اضغط لـ 1 2 3)"}" title="أرقام الآيات" style="font:600 11px 'Readex Pro',sans-serif">${numLat?"123":"١٢٣"}</button>
@@ -306,6 +307,7 @@ function renderMushaf(){
   document.getElementById("mReadBtn").onclick=()=>{setRead(true);toast("ملء الشاشة · ✕ في الأعلى للخروج");};
   const su=document.getElementById("mStepUp"),sd=document.getElementById("mStepDn"); if(su) su.onclick=()=>stepPhrase(-1); if(sd) sd.onclick=()=>stepPhrase(1);
   const rx=document.getElementById("mReadX"); if(rx) rx.onclick=()=>setRead(false);
+  const mpb=document.getElementById("mMapBtn"); if(mpb) mpb.onclick=()=>openMap((mSel&&!isH()&&mSel.s)||(mHi&&mHi.s)||Number(document.getElementById("mSura").value)||1);
   document.getElementById("mNumBtn").onclick=()=>{numLat=!numLat;try{localStorage.setItem("quran-num",numLat?"l":"a");}catch(e){}renderMushaf();toast(numLat?"أرقام الآيات: 1 2 3":"أرقام الآيات: ١ ٢ ٣");};
   document.getElementById("m15Btn").onclick=()=>{m15=!m15;try{localStorage.setItem("quran-15",m15?"1":"0");}catch(e){}renderMushaf();mushafTop();toast(m15?"15 سطرًا كالمصحف المطبوع":"نص متصل");};
   document.getElementById("mFitBtn").onclick=()=>{mFit=!mFit;try{localStorage.setItem("quran-fit",mFit?"1":"0");}catch(e){}renderMushaf();if(mFit)mushafTop();toast(mFit?"الصفحة كاملة على الشاشة":"خط كبير، مع التمرير");};
