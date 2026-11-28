@@ -21,7 +21,9 @@ function renderMaps(){
     Promise.all([loadMaps(),loadThemes(),loadQ()]).then(()=>{if(view==="maps")renderMaps();}).catch(()=>{});
     return;
   }
-  const sn=mapSur, M=MAPS.s[sn]||null, secs=THM.secs.filter(x=>x.s===sn);
+  const sn=mapSur, M=MAPS.s[sn]||null;
+  // a curated map may redefine the sections (split a long one, or cover ayat the themes miss)
+  const secs=M&&M.secs?M.secs.map(([f,t,ti],i)=>({s:sn,from:f,to:t,t:ti,k:"c"+i})):THM.secs.filter(x=>x.s===sn);
   const opts=SURAHS.map((x,i)=>`<option value="${i+1}" ${i+1===sn?"selected":""}>${i+1}. ${x[0]}${MAPS.s[i+1]?" ★":""}</option>`).join("");
   const hid=k=>mapQuiz&&!mapShown.has(k);
   const node=x=>{
